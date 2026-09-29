@@ -1,0 +1,22 @@
+import { readFileSync, readdirSync, statSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
+import { resolve, relative } from 'node:path';
+import { createHash } from 'node:crypto';
+import { zipSync, unzipSync } from 'fflate';
+const root=process.cwd();
+const target=resolve(root,'releases/shiye-v1.0.0-20260929.zip');
+if(existsSync(target))throw new Error('v1 归档已存在，拒绝覆盖。');
+const files={};
+function collect(path){for(const entry of readdirSync(path)){const file=resolve(path,entry);if(statSync(file).isDirectory())collect(file);else files[relative(root,file).replaceAll('\\','/')]=new Uint8Array(readFileSync(file));}}
+for(const dir of ['src','server','public','scripts','tests','docs','dist'])collect(resolve(root,dir));
+for(const name of ['package.json','package-lock.json','tsconfig.json','index.html','.env.example','.gitignore','README.md','启动拾页.cmd','配置AI.cmd'])files[name]=new Uint8Array(readFileSync(resolve(root,name)));
+if(Object.keys(files).some(n=>/(^|\/)\.env($|\.)/.test(n)&&n!=='.env.example'))throw new Error('归档包含环境密钥文件');
+const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
+const manifest={release:'v1.0.0',createdAt:new Date().toISOString(),note:'已验证工作的首版；原包版本 0.1.0。密钥和浏览器个人草稿不在此归档。',files:Object.fromEntries(Object.entries(files).map(([n,b])=>[n,hash(b)]))};
+files['RELEASE-v1.json']=new TextEncoder().encode(JSON.stringify(manifest,null,2));
+mkdirSync(resolve(root,'releases'),{recursive:true});
+const zip=zipSync(files,{level:6});writeFileSync(target,zip);
+const restored=unzipSync(readFileSync(target));
+for(const [name,digest]of Object.entries(manifest.files))if(hash(restored[name])!==digest)throw new Error(`恢复校验失败：${name}`);
+writeFileSync(target+'.sha256',hash(zip)+'  '+target.split(/[\\/]/).at(-1)+'\n');
+writeFileSync(resolve(root,'releases/README.md'),'# 拾页 v1 保留版本\n\n归档：shiye-v1.0.0-20260929.zip。已解包逐文件校验 SHA256。\n\n恢复：解压到新文件夹，安装 Node.js，执行 npm ci，再运行启动拾页.cmd。归档内含生产 dist，可执行 npm start。重新配置 .env 中的 AI Key；不要把密钥写入源码。浏览器草稿需从原浏览器单独备份。\n\n此归档不随新版本更新或覆盖。\n');
+console.log(JSON.stringify({archive:target,files:Object.keys(manifest.files).length,bytes:zip.length,verified:true,secretsExcluded:true},null,2));
