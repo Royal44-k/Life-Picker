@@ -18,3 +18,13 @@ test('malformed or excessive restored documents are rejected',()=>{
  assert.throws(()=>validateStory({...s,pages:Array(61).fill(s.pages[0])}));
  assert.throws(()=>readBundle(new Uint8Array([0,1,2])));
 });
+
+test('restore identities remap directory links and keep source references',async()=>{
+ const {restoreIdentity}=await import('../src/studio/backup.ts');
+ const story=planStory('## 第一章\n\n一段记录。\n\n## 第二章\n\n另一段记录。',DEFAULT_OPTIONS,{target:0,cover:true,ending:'none',toc:'yes'});
+ const next=restoreIdentity(story,new Map());
+ assert.notEqual(next.id,story.id);assert.equal(next.revision,0);
+ assert.ok(next.pages.find(p=>p.role==='toc')!.tocEntries!.every(e=>next.pages.some(p=>p.id===e.targetPageId)));
+ assert.deepEqual(next.pages.find(p=>p.role==='body')!.sourceRanges,story.pages.find(p=>p.role==='body')!.sourceRanges);
+ assert.throws(()=>validateStory({...story,pages:story.pages.map(p=>p.role==='toc'?{...p,tocEntries:[{label:'无效',targetPageId:'bad space'}]}:p)}));
+});

@@ -1,14 +1,15 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
-import {Layers,Plus,ArrowLeft,ArrowRight,ArrowUp,ArrowDown,LockKeyhole,Unlock,ImagePlus,Download,FolderOpen,Sparkles,Scissors,Trash2,RotateCcw,Check,BookOpen,Upload,ChevronRight,X} from 'lucide-react';
+import {Layers,Plus,ArrowLeft,ArrowRight,ArrowUp,ArrowDown,LockKeyhole,Unlock,Download,FolderOpen,Sparkles,Scissors,Trash2,RotateCcw,Check,BookOpen,Upload,ChevronRight,X} from 'lucide-react';
 import type {Story,StoryPage,MediaAsset,Diagram,StorySettings} from './model.ts';
 import {DEFAULT_SETTINGS,ROLE_NAMES,DIAGRAM_NAMES} from './model.ts';
-import {planStory,editPage,movePage,rebuildStory,newPage,splitPage,hashText} from './planner.ts';
+import {planStory,editPage,movePage,rebuildStory,newPage,splitPage,mergePage,hashText} from './planner.ts';
 import {layoutStory} from './scene.ts';
 import {allStories,migrateLegacy,saveStory,listAssets,putAsset,getAsset,importStory,importStories} from './database.ts';
 import {prepareAsset,loadImage} from './media.ts';
-import {makeBundle,readBundle,validateStory} from './backup.ts';
+import {makeBundle,readBundle,validateStory,restoreIdentity} from './backup.ts';
 import {storyZip,scenePng,confirmedScenes} from './render.ts';
 import {ScenePreview} from './ScenePreview.tsx';
+import {MediaPanel} from './MediaPanel.tsx';
 import {StoryboardAI} from './StoryboardAI.tsx';
 import {DEFAULT_OPTIONS} from '../core/layout.ts';
 import {createMeasure} from '../core/renderer.ts';
@@ -27,31 +28,31 @@ function boot(){return bootPromise??=migrateLegacy().then(allStories).then(async
  try{await saveStory(sample,0);}catch{/* Another tab may have saved the welcome story. */}
  return allStories();
 });}
-function AssetThumb({asset}:{asset:MediaAsset}){const [url,setUrl]=useState('');useEffect(()=>{const u=URL.createObjectURL(asset.blob);setUrl(u);return()=>URL.revokeObjectURL(u);},[asset]);return <img src={url} alt={asset.name}/>;}
-
 export default function Studio(){
  const [story,setStory]=useState<Story|null>(null),[stories,setStories]=useState<Story[]>([]),[assets,setAssets]=useState<MediaAsset[]>([]);
  const [tab,setTab]=useState('source'),[index,setIndex]=useState(0),[modal,setModal]=useState<'library'|'page'|'image'|'ai'|'storyboard'|null>(null);
  const [editId,setEditId]=useState(''),[saveStatus,setSaveStatus]=useState('正在读取本机作品…'),[error,setError]=useState(''),[toast,setToast]=useState(''),[busy,setBusy]=useState('');
- const [image,setImage]=useState<{url:string;blob:Blob}|null>(null),[imageBusy,setImageBusy]=useState(false),[canShare,setCanShare]=useState(false);
- const [undo,setUndo]=useState<Story[]>([]);
- const revs=useRef(new Map<string,number>()),queue=useRef(Promise.resolve()),blocked=useRef(false),sequence=useRef(0),currentId=useRef(''),imageTicket=useRef(0);
+ const [image,setImage]=useState<{url:string;blob:Blob;index:number;title:string}|null>(null),[imageBusy,setImageBusy]=useState(false),[canShare,setCanShare]=useState(false);
+ const [undo,setUndo]=useState<Story[]>([]),[imageError,setImageError]=useState('');
+ const revs=useRef(new Map<string,number>()),queue=useRef(Promise.resolve()),blocked=useRef(false),pending=useRef(false),sequence=useRef(0),currentId=useRef(''),imageTicket=useRef(0);
  const restoreInput=useRef<HTMLInputElement>(null),textInput=useRef<HTMLInputElement>(null);
- useEffect(()=>{let active=true;void boot().then(async rows=>{const photos=await listAssets();if(!active)return;setStories(rows);rows.forEach(s=>revs.current.set(s.id,s.revision));setAssets(photos);let id='';try{id=localStorage.getItem('shiye:studio:active')||'';}catch{}const initial=rows.find(s=>s.id===id)||rows[0];setStory(initial);currentId.current=initial.id;setSaveStatus('已保存到本机');}).catch(e=>{if(active){setError(e.message);setSaveStatus('存储不可用');}});return()=>{active=false;};},[]);
+ useEffect(()=>{let active=true;void boot().then(async rows=>{const photos=await listAssets(true);if(!active)return;setStories(rows);rows.forEach(s=>revs.current.set(s.id,s.revision));setAssets(photos);let id='';try{id=localStorage.getItem('shiye:studio:active')||'';}catch{}const initial=rows.find(s=>s.id===id)||rows[0];setStory(initial);currentId.current=initial.id;setSaveStatus('已保存到本机');}).catch(e=>{if(active){setError(e.message);setSaveStatus('存储不可用');}});return()=>{active=false;};},[]);
  useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(''),5000);return()=>clearTimeout(t);},[toast]);
- useEffect(()=>{const handler=(e:BeforeUnloadEvent)=>{if(saveStatus==='正在保存…'||blocked.current){e.preventDefault();e.returnValue='';}};addEventListener('beforeunload',handler);return()=>removeEventListener('beforeunload',handler);},[saveStatus]);
+ useEffect(()=>{const handler=(e:BeforeUnloadEvent)=>{if(pending.current||blocked.current){e.preventDefault();e.returnValue='';}};addEventListener('beforeunload',handler);return()=>removeEventListener('beforeunload',handler);},[saveStatus]);
  useEffect(()=>()=>{if(image)URL.revokeObjectURL(image.url);},[image]);
  const notify=(s:string)=>setToast(s);
+ async function refreshPhotos(){setAssets(await listAssets(true));}
+ async function beforePermanentDelete(){await queue.current;}
  function commit(next:Story,remember=false){
   try{validateStory(next);}catch(e){setError((e as Error).message);return false;}
   if(remember&&story)setUndo(old=>[...old.slice(-9),structuredClone(story)]);
-  next={...next,updatedAt:Date.now()};setStory(next);currentId.current=next.id;setStories(old=>[next,...old.filter(s=>s.id!==next.id)]);setSaveStatus('正在保存…');
+  pending.current=true;next={...next,updatedAt:Date.now()};setStory(next);currentId.current=next.id;setStories(old=>[next,...old.filter(s=>s.id!==next.id)]);setSaveStatus('正在保存…');
   const ticket=++sequence.current;try{localStorage.setItem('shiye:studio:active',next.id);}catch{}
   queue.current=queue.current.then(async()=>{
    if(blocked.current)throw new Error('请先备份当前作品，再刷新以恢复保存。');
    const revision=await saveStory(next,revs.current.get(next.id)||0);revs.current.set(next.id,revision);
-   if(ticket===sequence.current)setSaveStatus('已保存到本机');
-  }).catch(e=>{blocked.current=true;setSaveStatus('修改尚未保存');setError(e.message||'保存失败，请先备份作品。');});
+   if(ticket===sequence.current){pending.current=false;setSaveStatus('已保存到本机');}
+  }).catch(e=>{blocked.current=e.name!=='MissingAssetError';pending.current=true;setSaveStatus('修改尚未保存');setError(e.message||'保存失败，请先备份作品。');});
   return true;
  }
  const attempt=(fn:()=>void)=>{try{fn();}catch(e){setError((e as Error).message);}};
@@ -60,11 +61,11 @@ export default function Studio(){
  const page=story?.pages.find(p=>p.id===editId);
  const stale=!!story&&hashText(story.source)!==story.sourceHash;
  const warnings=Array.from(new Set([...(story?.warnings||[]),...scenes.flatMap(s=>s.warnings)]));
- function selectStory(s:Story){if(blocked.current){setError('当前有未保存修改，请先备份并刷新。');return;}setStory(s);currentId.current=s.id;setUndo([]);setIndex(0);setModal(null);try{localStorage.setItem('shiye:studio:active',s.id);}catch{}}
- function create(){if(blocked.current)return;const next=planStory('',story?.options||DEFAULT_OPTIONS,DEFAULT_SETTINGS);commit(next);setUndo([]);setIndex(0);setTab('source');}
+ function selectStory(s:Story){if(pending.current&&!blocked.current){setError('请等待保存完成，或先处理未保存提示后再切换作品。');return;}if(blocked.current){setError('当前有未保存修改，请先备份并刷新。');return;}setStory(s);currentId.current=s.id;setUndo([]);setIndex(0);setModal(null);try{localStorage.setItem('shiye:studio:active',s.id);}catch{}}
+ function create(){if(blocked.current||pending.current)return;const next=planStory('',story?.options||DEFAULT_OPTIONS,DEFAULT_SETTINGS);commit(next);setUndo([]);setIndex(0);setTab('source');}
  function updatePage(change:Partial<StoryPage>){if(!story||!page)return;attempt(()=>commit(editPage(story,page.id,change)));}
  async function upload(files:FileList|null){
-  if(!files?.length||!story)return;setBusy('正在整理照片…');try{if(files.length>10)throw new Error('每次最多添加 10 张照片。');const added:MediaAsset[]=[];for(const f of Array.from(files)){const a=await prepareAsset(f);await putAsset(a);added.push(a);}setAssets(old=>[...added,...old]);notify('照片已存本机，可选择放入页面。');}catch(e){setError((e as Error).message);setAssets(await listAssets());}finally{setBusy('');}
+  if(!files?.length||!story)return;setBusy('正在整理照片…');try{if(files.length>10)throw new Error('每次最多添加 10 张照片。');const added:MediaAsset[]=[];for(const f of Array.from(files)){const a=await prepareAsset(f);await putAsset(a);added.push(a);}setAssets(old=>[...added,...old]);notify('照片已存本机，可选择放入页面。');}catch(e){setError((e as Error).message);setAssets(await listAssets(true));}finally{setBusy('');}
  }
  function useCover(asset:MediaAsset){if(!story)return;attempt(()=>{let next=story;let cover=next.pages.find(p=>p.role==='cover');if(!cover){cover=newPage(story.title,'cover');next={...next,pages:[cover,...next.pages]};}if(!commit(editPage(next,cover.id,{assetId:asset.id,layout:'photo'}),true))return;notify('封面照片已更新');});}
  async function backup(){if(!story)return;setBusy('正在打包原文、页面和照片…');try{download(await makeBundle(story,getAsset),safeName(story.title)+'-作品备份.zip');notify('备份包含页面修改和照片，可从“恢复备份”导入。');}catch(e){setError((e as Error).message);}finally{setBusy('');}}
@@ -73,8 +74,8 @@ export default function Studio(){
    if(file.size>55_000_000)throw new Error('备份超过 55 MB，请分批导入。');
    const data=readBundle(new Uint8Array(await file.arrayBuffer()));const mapping=new Map<string,string>();
    for(const a of data.assets){const img=await loadImage(a.blob);if(img.naturalWidth!==a.width||img.naturalHeight!==a.height)throw new Error('照片尺寸与备份记录不一致。');mapping.set(a.id,makeId());}
-   const next={...data.story,id:makeId(),revision:0,updatedAt:Date.now(),pages:data.story.pages.map(p=>({...p,id:makeId(),assetId:p.assetId?mapping.get(p.assetId):undefined}))};
-   const photos=data.assets.map(a=>({...a,id:mapping.get(a.id)!}));await importStory(next,photos);revs.current.set(next.id,0);setAssets(await listAssets());setStories(old=>[next,...old]);selectStory(next);setTab('preview');notify('已恢复为新作品，原有作品保留。');
+   const next=restoreIdentity(data.story,mapping);
+   const photos=data.assets.map(a=>({...a,id:mapping.get(a.id)!}));await importStory(next,photos);revs.current.set(next.id,0);setAssets(await listAssets(true));setStories(old=>[next,...old]);selectStory(next);setTab('preview');notify('已恢复为新作品，原有作品保留。');
   }catch(e){setError((e as Error).message);}finally{setBusy('');if(restoreInput.current)restoreInput.current.value='';}
  }
  async function importText(files:FileList|null){
@@ -86,17 +87,24 @@ export default function Studio(){
   }catch(e){setError((e as Error).message);}finally{setBusy('');if(textInput.current)textInput.current.value='';}
  }
  async function exportZip(){if(!story)return;setBusy('正在准备图片…');try{const blob=await storyZip(story,setBusy);download(blob,safeName(story.title)+'.zip');notify('整篇图片已导出，按文件名顺序发布即可。');}catch(e){setError((e as Error).message);}finally{setBusy('');}}
- async function previewImage(){
-  if(!story||!scene)return;const ticket=++imageTicket.current;setModal('image');setImage(null);setImageBusy(true);
-  try{confirmedScenes(story);const blob=await scenePng(scene,story.options);if(imageTicket.current!==ticket)return;setImage({url:URL.createObjectURL(blob),blob});setCanShare(!!navigator.canShare?.({files:[new File([blob],'拾页.png',{type:'image/png'})]}));}catch(e){setError((e as Error).message);}finally{if(imageTicket.current===ticket)setImageBusy(false);}
+ async function previewImage(selected=index){
+  if(!story)return;const ticket=++imageTicket.current;setModal('image');setImage(null);setImageBusy(true);setCanShare(false);setImageError('');
+  try{
+   const available=confirmedScenes(story),chosen=Math.max(0,Math.min(selected,available.length-1)),selectedScene=available[chosen];
+   setIndex(chosen);const blob=await scenePng(selectedScene,story.options);if(imageTicket.current!==ticket)return;
+   setImage({url:URL.createObjectURL(blob),blob,index:chosen,title:story.title});
+   setCanShare(!!navigator.canShare?.({files:[new File([blob],'拾页.png',{type:'image/png'})]}));
+  }catch(e){if(imageTicket.current===ticket){setImageError((e as Error).message);setError((e as Error).message);}}
+  finally{if(imageTicket.current===ticket)setImageBusy(false);}
  }
+
  function close(){setModal(null);imageTicket.current++;setImage(null);}
  if(!story)return <main className="next-studio loading"><Layers/><h1>拾页</h1><p>{error||'正在打开你的创作空间…'}</p><a href="?classic=1">打开经典工作台</a></main>;
  return <div className="next-studio">
   <header className="next-header"><a href="#" onClick={e=>e.preventDefault()} className="next-brand"><span><Layers size={23}/></span><strong>拾页</strong><small>创作工作台 <b>1.1</b></small></a><div className="next-header-actions"><a href="?classic=1">经典版</a><button onClick={()=>setModal('library')} disabled={!!busy}><FolderOpen size={17}/><span>作品库</span></button></div></header>
   <main className="next-main">
-   <div className="next-intro"><div><p className="next-eyebrow">留住自己的细节 · 写出自己的表达</p><h1>把经历，编成作品。</h1><p className="next-subtitle">从一段文字、一张照片，开始这一次分享。</p></div><button className="next-new" onClick={create} disabled={!!busy||blocked.current}><Plus size={18}/><span>新建作品</span></button></div>
-   <div className="next-work-title"><span className="next-document"><BookOpen size={17}/>{story.title}</span><span className={'next-save '+(blocked.current?'bad':'')}><Check size={13}/>{saveStatus}</span></div>
+   <div className="next-intro"><div><p className="next-eyebrow">留住自己的细节 · 写出自己的表达</p><h1>把经历，编成作品。</h1><p className="next-subtitle">从一段文字、一张照片，开始这一次分享。</p></div><button className="next-new" onClick={create} disabled={!!busy||blocked.current||pending.current}><Plus size={18}/><span>新建作品</span></button></div>
+   <div className="next-work-title"><span className="next-document"><BookOpen size={17}/>{story.title}</span><span className={'next-save '+(blocked.current?'bad':'')}><Check size={13}/>{saveStatus}</span>{saveStatus==='修改尚未保存'&&<button className="next-save-retry" onClick={()=>{blocked.current=false;commit(story);}}>重试保存</button>}</div>
    {error&&<div role="alert" className="next-error">{error}<button aria-label="关闭提示" onClick={()=>setError('')}><X size={15}/></button></div>}
    {stale&&<div className="next-notice">原文已修改。点“生成分镜”后，再检查和导出最新页面。</div>}
    <div className="next-workspace">
@@ -109,9 +117,8 @@ export default function Studio(){
       <div className="next-checks"><label><input type="checkbox" checked={story.settings.cover} onChange={e=>commit({...story,settings:{...story.settings,cover:e.target.checked}})}/>生成独立封面</label><label>目录<select aria-label="目录设置" value={story.settings.toc||'auto'} onChange={e=>commit({...story,settings:{...story.settings,toc:e.target.value as StorySettings['toc']}})}><option value="auto">按内容建议</option><option value="yes">添加目录</option><option value="no">不添加</option></select></label></div>
       <button className="next-primary next-wide" disabled={!story.source.trim()||!!busy} onClick={()=>attempt(()=>{if(!commit(rebuildStory(story,story.source,createMeasure(story.options)),true))return;setIndex(0);setTab('outline');notify('已完整编排，先看看每一页。');})}><Layers size={17}/>生成分镜</button><p className="next-hint">原文排版在本机完成。重排会更新未锁定页；保留页面修改请先锁定。内容过多时增加续页。</p><button className="next-secondary next-wide" disabled={!story.source.trim()||!!busy} onClick={()=>setModal('storyboard')}><Sparkles size={16}/>AI 编辑成篇 · 先看建议</button>
      </div>}
-     {tab==='media'&&<div className="next-panel-body"><div className="next-section-title"><h2>自己的照片，更有故事</h2><span>{assets.length} 张</span></div><label className="next-upload"><ImagePlus size={28}/><strong>{busy||'添加照片或截图'}</strong><span>支持多选 · 自动调整方向与尺寸</span><input aria-label="上传照片" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple disabled={!!busy} onChange={e=>{void upload(e.target.files);e.target.value='';}}/></label>
-      <p className="next-hint">照片仅存本机；建议定期备份作品。上传不会自动调用 AI。</p><div className="next-assets">{assets.map(a=><article key={a.id}><AssetThumb asset={a}/><p>{a.name}</p><button onClick={()=>useCover(a)} disabled={!!busy}>用作封面照片</button></article>)}</div>{!assets.length&&<p className="next-empty">一张照片也可以成为一篇好内容的起点。</p>}</div>}
-     {tab==='outline'&&<div className="next-panel-body"><div className="next-section-title"><h2>每一页，都有重点</h2><span>{story.pages.length} 个分镜 / {scenes.length} 张图片</span></div><div className="next-outline">{story.pages.map((p,i)=>{const first=scenes.find(s=>s.id===p.id);return <article className="next-outline-row" key={p.id}><button className="next-thumb-button" aria-label={'编辑第 '+(i+1)+' 页'} onClick={()=>{setEditId(p.id);setModal('page');}}>{first&&<ScenePreview scene={first} options={story.options} small/>}</button><div className="next-page-info"><span>{String(i+1).padStart(2,'0')} · {ROLE_NAMES[p.role]} {p.locked&&<LockKeyhole size={12}/>}</span><button onClick={()=>{setEditId(p.id);setModal('page');}}>{p.source.replace(/^#+\s*/,'').split('\n')[0]||'照片页'}</button><small>{p.assetId?'含照片 · ':''}{DIAGRAM_NAMES[p.diagram]}</small><div className="next-page-tools"><button aria-label={'上移第 '+(i+1)+' 页'} disabled={i===0} onClick={()=>commit(movePage(story,p.id,-1),true)}><ArrowUp size={15}/></button><button aria-label={'下移第 '+(i+1)+' 页'} disabled={i===story.pages.length-1} onClick={()=>commit(movePage(story,p.id,1),true)}><ArrowDown size={15}/></button><button aria-label={'删除第 '+(i+1)+' 页'} disabled={p.locked} onClick={()=>{if(confirm('删除这个分镜？原文仍保留，可以撤销。'))commit({...story,pages:story.pages.filter(x=>x.id!==p.id)},true);}}><Trash2 size={15}/></button></div></div><ChevronRight size={16}/></article>;})}</div>
+     {tab==='media'&&<MediaPanel assets={assets} story={story} busy={busy} onUpload={upload} onUseCover={useCover} onRefresh={refreshPhotos} beforePermanentDelete={beforePermanentDelete} onError={setError} notify={notify}/>} 
+     {tab==='outline'&&<div className="next-panel-body"><div className="next-section-title"><h2>每一页，都有重点</h2><span>{story.pages.length} 个分镜 / {scenes.length} 张图片</span></div><div className="next-outline">{story.pages.map((p,i)=>{const first=scenes.find(s=>s.id===p.id);return <article className="next-outline-row" key={p.id}><button className="next-thumb-button" aria-label={'编辑第 '+(i+1)+' 页'} onClick={()=>{setEditId(p.id);setModal('page');}}>{first&&<ScenePreview scene={first} options={story.options} small/>}</button><div className="next-page-info"><span>{String(i+1).padStart(2,'0')} · {ROLE_NAMES[p.role]} {p.locked&&<LockKeyhole size={12}/>}</span><button onClick={()=>{setEditId(p.id);setModal('page');}}>{p.source.replace(/^#+\s*/,'').split('\n')[0]||'照片页'}</button><small>{p.assetId?'含照片 · ':''}{DIAGRAM_NAMES[p.diagram]}</small><div className="next-page-tools"><button aria-label={'保存分镜 '+(i+1)+' 的图片'} disabled={!first||stale||!!busy} onClick={()=>void previewImage(scenes.findIndex(s=>s.id===p.id))}><Download size={15}/></button><button aria-label={'上移第 '+(i+1)+' 页'} disabled={i===0} onClick={()=>commit(movePage(story,p.id,-1),true)}><ArrowUp size={15}/></button><button aria-label={'下移第 '+(i+1)+' 页'} disabled={i===story.pages.length-1} onClick={()=>commit(movePage(story,p.id,1),true)}><ArrowDown size={15}/></button><button aria-label={'删除第 '+(i+1)+' 页'} disabled={p.locked} onClick={()=>{if(confirm('删除这个分镜？原文仍保留，可以撤销。'))commit({...story,pages:story.pages.filter(x=>x.id!==p.id)},true);}}><Trash2 size={15}/></button></div></div><ChevronRight size={16}/></article>;})}</div>
       <button className="next-secondary next-wide" disabled={story.pages.length>=60} onClick={()=>{const p=newPage('## 新的一页\n\n在这里补充内容。');if(!commit({...story,pages:[...story.pages,p]},true))return;setEditId(p.id);setModal('page');}}><Plus size={16}/>添加一页</button>
       {!!undo.length&&<button className="next-text-action" onClick={()=>{const old=undo.at(-1)!;setUndo(prev=>prev.slice(0,-1));commit(old);}}><RotateCcw size={15}/>撤销上一步</button>}
      </div>}
@@ -125,7 +132,7 @@ export default function Studio(){
     </section>
     <aside className="next-desktop-preview"><Preview/></aside>
    </div>
-   <div className="next-bottom"><div><strong>{scenes.length} 张图片</strong><span>原文和页面分别保留</span></div><button className="next-secondary" disabled={!!busy||!scene||stale} onClick={()=>void previewImage()}>保存单图</button><button className="next-primary" disabled={!!busy||!scenes.length||stale} onClick={()=>void exportZip()}><Download size={16}/>整篇 ZIP</button></div>
+   <div className="next-bottom"><div><strong>{scenes.length} 张图片</strong><span>{scenes.length?'当前第 '+(Math.min(index,scenes.length-1)+1)+' 张，可选页保存':'原文和页面分别保留'}</span></div><button className="next-secondary" disabled={!!busy||!scene||stale} onClick={()=>void previewImage()}>保存单图</button><button className="next-primary" disabled={!!busy||!scenes.length||stale} onClick={()=>void exportZip()}><Download size={16}/>整篇 ZIP</button></div>
    <div className="next-utilities"><button onClick={()=>void backup()} disabled={!!busy}>备份作品</button><button onClick={()=>restoreInput.current?.click()} disabled={!!busy||blocked.current}>恢复备份</button><a href="/guide-v1.1.html" target="_blank" rel="noreferrer">使用指南</a><span>v1 已保留 · 作品只存本机</span></div>
   </main>
   <input hidden aria-label="选择作品备份" ref={restoreInput} type="file" accept=".zip" onChange={e=>void restore(e.target.files?.[0])}/><input hidden aria-label="选择文字文件" ref={textInput} type="file" multiple accept=".md,.markdown,.txt" onChange={e=>void importText(e.target.files)}/>
@@ -135,11 +142,17 @@ export default function Studio(){
    <div className="next-dialog-top"><span>原文保持不变 · 修改自动保存</span><button className="next-secondary" onClick={()=>updatePage({locked:!page.locked})}>{page.locked?<Unlock size={15}/>:<LockKeyhole size={15}/>} {page.locked?'解锁本页':'锁定本页'}</button></div>
    <label className="next-field">本页文字<textarea aria-label="本页文字" rows={7} value={page.source} disabled={page.locked} onChange={e=>updatePage({source:e.target.value})}/></label>
    <label className="next-field">表达结构<select aria-label="表达结构" disabled={page.locked} value={page.diagram} onChange={e=>updatePage({diagram:e.target.value as Diagram,role:e.target.value==='none'?'body':'diagram'})}>{Object.entries(DIAGRAM_NAMES).map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label><p className="next-hint">图解每一项用独立段落或列表项表示。金字塔用于有明确层级的 3～5 项内容。</p>
-   <label className="next-field">搭配照片<select aria-label="搭配照片" disabled={page.locked} value={page.assetId||''} onChange={e=>updatePage({assetId:e.target.value||undefined})}><option value="">不放照片</option>{assets.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
+   <label className="next-field">搭配照片<select aria-label="搭配照片" disabled={page.locked} value={page.assetId||''} onChange={e=>updatePage({assetId:e.target.value||undefined})}><option value="">不放照片</option>{page.assetId&&!assets.some(a=>a.id===page.assetId)&&<option value={page.assetId} disabled>照片已移除，请重新选择</option>}{assets.filter(a=>!a.trashedAt||a.id===page.assetId).map(a=><option key={a.id} value={a.id}>{a.name}{a.trashedAt?'（回收站）':''}</option>)}</select></label>
    {page.assetId&&<><label className="next-field">照片显示<select disabled={page.locked} value={page.fit} onChange={e=>updatePage({fit:e.target.value as 'cover'|'contain'})}><option value="cover">填满画面</option><option value="contain">显示完整照片</option></select></label><label className="next-field">左右取景<input disabled={page.locked} type="range" min="0" max="100" value={page.focusX*100} onChange={e=>updatePage({focusX:Number(e.target.value)/100})}/></label><label className="next-field">上下取景<input disabled={page.locked} type="range" min="0" max="100" value={page.focusY*100} onChange={e=>updatePage({focusY:Number(e.target.value)/100})}/></label></>}
-   <div className="next-dialog-actions"><button className="next-secondary" disabled={page.locked} onClick={()=>attempt(()=>{const next=splitPage(story,page.id,createMeasure(story.options));if(next===story){notify('本页能完整放下，无需拆分。');return;}if(!commit(next,true))return;notify('已拆为续页');})}><Scissors size={15}/>拆为续页</button><button className="next-secondary" disabled={page.locked||story.pages.findIndex(p=>p.id===page.id)===story.pages.length-1} onClick={()=>attempt(()=>{const pos=story.pages.findIndex(p=>p.id===page.id),next=story.pages[pos+1];if(next.locked)throw new Error('下一页已锁定，请先解锁。');if(next.assetId&&page.assetId)throw new Error('两页都含照片，请先选择要保留的照片。');const merged={...page,source:page.source+'\n\n'+next.source,assetId:page.assetId||next.assetId};const pages=[...story.pages];pages.splice(pos,2,merged);commit({...story,pages},true);})}>合并下一页</button><button className="next-primary" onClick={close}>保存并关闭</button></div>
+   <div className="next-dialog-actions"><button className="next-secondary" disabled={page.locked} onClick={()=>attempt(()=>{const next=splitPage(story,page.id,createMeasure(story.options));if(next===story){notify('本页能完整放下，无需拆分。');return;}if(!commit(next,true))return;notify('已拆为续页');})}><Scissors size={15}/>拆为续页</button><button className="next-secondary" disabled={page.locked||story.pages.findIndex(p=>p.id===page.id)===story.pages.length-1} onClick={()=>attempt(()=>{commit(mergePage(story,page.id),true);})}>合并下一页</button><button className="next-primary" onClick={close}>保存并关闭</button></div>
   </Modal>}
-  {modal==='image'&&<Modal title="保存到手机相册" onClose={close}><p className="next-hint">iPhone 可长按下方图片，选择存储到“照片”。</p>{imageBusy?<p>正在生成高清图片…</p>:image?<><img className="save-image" src={image.url} alt="可长按保存的作品图片"/><div className="next-dialog-actions"><button className="next-secondary" onClick={()=>download(image.blob,safeName(story.title)+'-'+(index+1)+'.png')}>下载 PNG</button>{canShare&&<button className="next-primary" onClick={()=>void navigator.share({files:[new File([image.blob],'拾页.png',{type:'image/png'})]}).catch(e=>{if(e.name!=='AbortError')notify('请改用长按图片保存。');})}>系统分享</button>}</div></>:<p>未能生成图片，请关闭后查看提示并重试。</p>}</Modal>}
+  {modal==='image'&&<Modal title="保存到手机相册" onClose={close}>
+   <label className="next-field">选择要保存的图片<select aria-label="选择要保存的图片" value={Math.min(index,Math.max(0,scenes.length-1))} onChange={e=>void previewImage(Number(e.target.value))}>{scenes.map((s,i)=><option key={s.id} value={i}>第 {i+1} 张 · {ROLE_NAMES[s.role]}</option>)}</select></label>
+   <div className="next-image-picker"><button className="next-secondary" aria-label="保存上一张图片" disabled={index<=0} onClick={()=>void previewImage(index-1)}><ArrowLeft size={16}/>上一张</button><span>第 {index+1} / {scenes.length} 张</span><button className="next-secondary" aria-label="保存下一张图片" disabled={index>=scenes.length-1} onClick={()=>void previewImage(index+1)}>下一张<ArrowRight size={16}/></button></div>
+   <p className="next-hint">确认页数后，长按下方图片存储到“照片”，或下载当前这一张 PNG。</p>
+   {imageBusy?<p role="status">正在生成第 {index+1} 张高清图片…</p>:image?<><img className="save-image" src={image.url} alt={'可长按保存的第 '+(image.index+1)+' 张图片'}/><div className="next-dialog-actions"><button className="next-secondary" onClick={()=>download(image.blob,safeName(image.title)+'-'+String(image.index+1).padStart(2,'0')+'.png')}>下载 PNG</button>{canShare&&<button className="next-primary" onClick={()=>void navigator.share({files:[new File([image.blob],'拾页-'+(image.index+1)+'.png',{type:'image/png'})]}).catch(e=>{if(e.name!=='AbortError')notify('请改用长按图片保存。');})}>系统分享</button>}</div></>:<p role="alert">{imageError||'未能生成图片，请选择其他页或关闭后重试。'}</p>}
+  </Modal>}
+
   {modal==='storyboard'&&<StoryboardAI story={story} onClose={close} onApply={pages=>attempt(()=>{const next=planStory(story.source,story.options,story.settings,createMeasure(story.options));const cover=story.pages.find(p=>p.role==='cover'&&p.assetId);if(cover&&pages[0]?.role==='cover')pages[0]={...pages[0],assetId:cover.assetId,fit:cover.fit,focusX:cover.focusX,focusY:cover.focusY};next.pages=pages;next.warnings=['AI 已编辑表达，请核对事实；原作品在作品库中保留。'];if(!commit(next))return;setUndo([]);close();setIndex(0);setTab('outline');notify('AI 分镜已另存为新作品');})}/>}
   {modal==='ai'&&<AiPanel source={story.source} onClose={close} notify={notify} onApply={text=>attempt(()=>{const next=planStory(text,story.options,story.settings,createMeasure(story.options));if(!commit(next))return;setUndo([]);close();setTab('outline');notify('已生成新作品，原文作品仍在作品库。');})}/>}
  </div>;

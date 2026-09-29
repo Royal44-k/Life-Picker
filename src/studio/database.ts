@@ -12,13 +12,36 @@ function openDB():Promise<IDBDatabase>{return new Promise((resolve,reject)=>{
 function finish<T>(db:IDBDatabase,tx:IDBTransaction,result:()=>T):Promise<T>{return new Promise((resolve,reject)=>{tx.oncomplete=()=>{db.close();try{resolve(result());}catch(e){reject(e);}};tx.onerror=()=>{};tx.onabort=()=>{db.close();reject(tx.error||new Error('保存中断，当前修改尚未保存。'));};});}
 export async function allStories():Promise<Story[]>{const db=await openDB();const tx=db.transaction('stories');let rows:Story[]=[];tx.objectStore('stories').getAll().onsuccess=e=>{rows=(e.target as IDBRequest).result;};return finish(db,tx,()=>rows.map(validateStory).sort((a,b)=>b.updatedAt-a.updatedAt));}
 export async function saveStory(story:Story,expected:number):Promise<number>{
- validateStory(story);const db=await openDB();const tx=db.transaction('stories','readwrite');const store=tx.objectStore('stories');let next=0;let conflict=false;
- store.get(story.id).onsuccess=e=>{const old=(e.target as IDBRequest).result as Story|undefined;if((old?.revision||0)!==expected){conflict=true;tx.abort();return;}next=expected+1;store.put({...story,revision:next});};
- try{return await finish(db,tx,()=>next);}catch(e){if(conflict)throw new Error('另一窗口已更新此作品。请先备份当前修改，再刷新；不会覆盖新版本。');throw e;}
+ validateStory(story);const db=await openDB();const tx=db.transaction(['stories','assets'],'readwrite');const store=tx.objectStore('stories');
+ let next=0,conflict=false,missing=false;
+ store.get(story.id).onsuccess=e=>{
+  const old=(e.target as IDBRequest).result as Story|undefined;
+  if((old?.revision||0)!==expected){conflict=true;tx.abort();return;}
+  const ids=[...new Set(story.pages.flatMap(p=>p.assetId?[p.assetId]:[]))];let remaining=ids.length;
+  const put=()=>{next=expected+1;store.put({...story,revision:next});};
+  if(!remaining){put();return;}
+  for(const id of ids)tx.objectStore('assets').get(id).onsuccess=e=>{
+   if(!(e.target as IDBRequest).result){missing=true;tx.abort();return;}
+   if(--remaining===0)put();
+  };
+ };
+ try{return await finish(db,tx,()=>next);}catch(e){
+  if(conflict)throw new Error('另一窗口已更新此作品。请先备份当前修改，再刷新；不会覆盖新版本。');
+  if(missing){const error=new Error('照片已在另一窗口被彻底删除。请为相关页面重新选择照片或选择“不放照片”，再保存。');error.name='MissingAssetError';throw error;}
+  throw e;
+ }
 }
+
 export async function getAsset(id:string):Promise<MediaAsset|undefined>{const db=await openDB();const tx=db.transaction('assets');let a:MediaAsset|undefined;tx.objectStore('assets').get(id).onsuccess=e=>{a=(e.target as IDBRequest).result;};return finish(db,tx,()=>a);}
-export async function listAssets():Promise<MediaAsset[]>{const db=await openDB();const tx=db.transaction('assets');let a:MediaAsset[]=[];tx.objectStore('assets').getAll().onsuccess=e=>{a=(e.target as IDBRequest).result;};return finish(db,tx,()=>a.sort((a,b)=>b.createdAt-a.createdAt));}
-export async function putAsset(asset:MediaAsset):Promise<void>{const db=await openDB();const tx=db.transaction('assets','readwrite');const store=tx.objectStore('assets');store.count().onsuccess=e=>{if((e.target as IDBRequest).result>=100){tx.abort();return;}store.put(asset);};return finish(db,tx,()=>undefined);}
+export async function listAssets(includeTrashed=false):Promise<MediaAsset[]>{const db=await openDB();const tx=db.transaction('assets');let a:MediaAsset[]=[];tx.objectStore('assets').getAll().onsuccess=e=>{a=(e.target as IDBRequest).result;};return finish(db,tx,()=>a.filter(asset=>includeTrashed||!asset.trashedAt).sort((a,b)=>b.createdAt-a.createdAt));}
+export async function putAsset(asset:MediaAsset):Promise<void>{
+ const db=await openDB();const tx=db.transaction('assets','readwrite');const store=tx.objectStore('assets');let full=false;
+ store.get(asset.id).onsuccess=e=>{
+  if((e.target as IDBRequest).result){store.put(asset);return;}
+  store.count().onsuccess=e=>{if((e.target as IDBRequest).result>=100){full=true;tx.abort();return;}store.put(asset);};
+ };
+ try{await finish(db,tx,()=>undefined);}catch(e){if(full)throw new Error('本机照片已达 100 张（含回收站）。请在回收站永久删除未使用的照片后再添加；已有作品保留。');throw e;}
+}
 export async function importStory(story:Story,assets:MediaAsset[]):Promise<void>{
  validateStory(story);const db=await openDB();const tx=db.transaction(['stories','assets'],'readwrite');
  const s=tx.objectStore('stories');s.get(story.id).onsuccess=e=>{if((e.target as IDBRequest).result){tx.abort();return;}s.put(story);for(const a of assets)tx.objectStore('assets').put(a);};
@@ -49,4 +72,36 @@ export async function importStories(stories:Story[]):Promise<void>{
   store.put({...s,revision:1});
  };
  try{await finish(db,tx,()=>undefined);}catch(e){if(conflict)throw new Error('作品已存在，本次导入未写入。');throw e;}
+}
+
+
+export async function assetUsage(id:string):Promise<{id:string;title:string}[]>{
+ return (await allStories()).filter(s=>s.pages.some(p=>p.assetId===id)).map(s=>({id:s.id,title:s.title}));
+}
+async function updateTrash(id:string,trashed:boolean):Promise<void>{
+ const db=await openDB();const tx=db.transaction('assets','readwrite');const store=tx.objectStore('assets');let missing=false;
+ store.get(id).onsuccess=e=>{
+  const asset=(e.target as IDBRequest).result as MediaAsset|undefined;
+  if(!asset){missing=true;tx.abort();return;}
+  if(trashed)asset.trashedAt=Date.now();else delete asset.trashedAt;
+  store.put(asset);
+ };
+ try{await finish(db,tx,()=>undefined);}catch(e){if(missing)throw new Error('照片已不存在，请刷新素材库。');throw e;}
+}
+export const trashAsset=(id:string)=>updateTrash(id,true);
+export const restoreAsset=(id:string)=>updateTrash(id,false);
+export async function deleteAssetPermanently(id:string):Promise<void>{
+ const db=await openDB();const tx=db.transaction(['assets','stories'],'readwrite');let reason='';
+ const assets=tx.objectStore('assets');
+ assets.get(id).onsuccess=e=>{
+  const asset=(e.target as IDBRequest).result as MediaAsset|undefined;if(!asset)return;
+  if(!asset.trashedAt){reason='请先将照片移入回收站；已恢复的照片不会被直接删除。';tx.abort();return;}
+  tx.objectStore('stories').getAll().onsuccess=e=>{
+   const stories=(e.target as IDBRequest).result as Story[];
+   const used=stories.filter(s=>s.pages.some(p=>p.assetId===id));
+   if(used.length){reason='照片仍用于 '+used.length+' 个作品，请先从对应页面移除照片。';tx.abort();return;}
+   assets.delete(id);
+  };
+ };
+ try{await finish(db,tx,()=>undefined);}catch(e){if(reason)throw new Error(reason);throw e;}
 }

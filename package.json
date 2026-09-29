@@ -9,11 +9,11 @@
     "build": "tsc -b && vite build && node scripts/build-sw.mjs",
     "assets": "node scripts/make-assets.mjs",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node --experimental-strip-types --test tests/core.test.ts tests/ai.test.mjs tests/story.test.ts tests/backup.test.ts tests/storyboard.test.mjs",
+    "test": "node --experimental-strip-types --test tests/content.test.ts tests/core.test.ts tests/ai.test.mjs tests/story.test.ts tests/backup.test.ts tests/storyboard.test.mjs",
     "test:e2e": "node tests/browser.mjs && npm run test:studio",
     "test:pwa": "node tests/pwa-studio.mjs",
-    "test:studio": "node tests/studio-browser.mjs && node tests/studio-ai-browser.mjs && node tests/studio-invalid-edit.mjs",
-    "test:storage": "node tests/studio-storage.mjs && node tests/studio-migration.mjs"
+    "test:studio": "node tests/studio-browser.mjs && node tests/studio-ai-browser.mjs && node tests/studio-invalid-edit.mjs && node tests/user-feedback-browser.mjs",
+    "test:storage": "node tests/studio-storage.mjs && node tests/studio-migration.mjs && node tests/media-lifecycle.mjs"
   },
   "dependencies": {
     "react": "^19.2.0",

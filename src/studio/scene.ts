@@ -1,10 +1,10 @@
-import type { Story, Scene, StoryPage } from './model.ts';
+import type { Story, Scene, StoryPage, SceneLine } from './model.ts';
 import type { MeasureText, CardOptions, CardLine } from '../core/types.ts';
 import { parseMarkdown } from '../core/markdown.ts';
 import { HEIGHTS, wrapText } from '../core/layout.ts';
 export const roughMeasure:MeasureText=(s,size)=>Array.from(s).reduce((v,c)=>v+(/[\x00-\xff]/.test(c)?size*.57:size),0);
-export function textLines(source:string,options:CardOptions,measure:MeasureText,width=904,cover=false):CardLine[]{
-  const lines:CardLine[]=[];let y=0;
+export function textLines(source:string,options:CardOptions,measure:MeasureText,width=904,cover=false):SceneLine[]{
+  const lines:SceneLine[]=[];let y=0;
   for(const block of parseMarkdown(source)){
     if(block.kind==='break')continue;
     const heading=block.kind==='heading';
@@ -14,7 +14,7 @@ export function textLines(source:string,options:CardOptions,measure:MeasureText,
     const weight=heading||cover||block.emphasis?700:400;
     const indent=block.kind==='list'||block.kind==='quote'?38:0;
     wrapText(block.text,width-indent-size,size,measure,weight,block.kind).forEach((text,i)=>{
-      lines.push({text,x:88+indent,y,size,lineHeight,kind:block.kind,weight,marker:i===0?block.marker:undefined,emphasis:block.emphasis});y+=lineHeight;
+      lines.push({headingAnchor:heading&&i===0?{label:block.text,level:block.level||1}:undefined,text,x:88+indent,y,size,lineHeight,kind:block.kind,weight,marker:i===0?block.marker:undefined,emphasis:block.emphasis});y+=lineHeight;
     });
     y+=heading?24:28;
   }
@@ -50,11 +50,11 @@ function diagramScene(page:StoryPage,story:Story,measure:MeasureText,base:Scene)
   }
   return {...base,lines:out,shapes};
 }
-export function layoutStory(story:Story,measure:MeasureText):Scene[]{
+function layoutPages(story:Story,measure:MeasureText):Scene[]{
   const all:Scene[]=[];
   for(const page of story.pages){
     const height=HEIGHTS[story.options.ratio];
-    const base:Scene={id:page.id,lines:[],shapes:[],width:1080,height,index:0,total:0,role:page.role,warnings:[],assetId:page.assetId};
+    const base:Scene={id:page.id,pageId:page.id,lines:[],shapes:[],width:1080,height,index:0,total:0,role:page.role,warnings:[],assetId:page.assetId};
     if(page.diagram!=='none'){
       const diagram=diagramScene(page,story,measure,base);
       if(diagram&&!page.assetId){all.push(diagram);continue;}
@@ -76,4 +76,36 @@ export function layoutStory(story:Story,measure:MeasureText):Scene[]{
   }
   if(all.length>60)throw new Error('排版超过 60 页，请拆成多篇作品。');
   return all.map((s,index)=>({...s,index,total:all.length}));
+}
+
+
+function generatedToc(story:Story,scenes:Scene[]){
+ const warnings=new Map<string,string[]>();
+ const pages=story.pages.map(page=>{
+  if(page.role!=='toc'||!page.tocEntries)return page;
+  const notes:string[]=[];
+  const rows=page.tocEntries.flatMap((entry,order)=>{
+   const related=scenes.filter(s=>s.pageId===entry.targetPageId);
+   if(!related.length){notes.push('有目录项对应的页面已移除，已从目录隐藏。');return [];}
+   const matching=related.flatMap(s=>s.lines.filter(l=>l.headingAnchor?.level===2&&l.headingAnchor.label===entry.label).map(()=>s));
+   const target=matching[entry.occurrence||0]||related[0];
+   if(!matching[entry.occurrence||0])notes.push('有目录标题经过修改，请核对目录描述；页码仍指向对应页面。');
+   return [{label:entry.label,number:target.index+1,order}];
+  }).sort((a,b)=>a.number-b.number||a.order-b.order);
+  const title=parseMarkdown(page.source).find(b=>b.kind==='heading')?.text||'这一篇，慢慢读';
+  const source='## '+title+'\n\n'+(rows.length?rows.map(r=>r.label+'  ·  第 '+r.number+' 页').join('\n\n'):'目录对应的页面已被移除。');
+  warnings.set(page.id,[...new Set(notes)]);return {...page,source};
+ });
+ return {pages,warnings};
+}
+export function layoutStory(story:Story,measure:MeasureText):Scene[]{
+ let working=story;
+ for(let attempt=0;attempt<6;attempt++){
+  const scenes=layoutPages(working,measure),generated=generatedToc(story,scenes);
+  if(generated.pages.every((p,i)=>p.source===working.pages[i].source)){
+   return scenes.map(s=>({...s,warnings:[...s.warnings,...(generated.warnings.get(s.pageId||'')||[]),...(s.index===0&&story.settings.target&&scenes.length>story.settings.target?['实际排版为 '+scenes.length+' 页，超过目标 '+story.settings.target+' 页；内容完整保留。']:[])]}));
+  }
+  working={...story,pages:generated.pages};
+ }
+ throw new Error('目录页码尚未稳定，请简化目录或改为手工导读后再导出。');
 }

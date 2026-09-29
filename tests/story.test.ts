@@ -80,7 +80,7 @@ test('regenerating keeps photos, crop choices and stable identities on matched p
  s=editPage(s,body.id,{assetId:'photo-body',fit:'contain'});
  const next=rebuildStory(s,'# 新的故事标题\n\n## 一个发现\n\n真实的经历。',measure);
  assert.equal(next.pages[0].assetId,'photo-cover');assert.equal(next.pages[0].focusX,.2);
- const same=next.pages.find(p=>p.source===body.source)!;
+ const same=next.pages.find(p=>p.id===body.id)!;
  assert.equal(same.id,body.id);assert.equal(same.assetId,'photo-body');assert.equal(same.fit,'contain');
 });
 
@@ -99,4 +99,80 @@ test('manual split keeps literal code across every continued page',async()=>{
  assert.ok(split.pages.length>1);
  const rendered=layoutStory(split,measure).flatMap(s=>s.lines.map(l=>l.text)).join('');
  assert.equal(rendered.replace(/\s/g,''),code.replace(/\s/g,''));
+});
+
+test('third-level headings stay with their parent section when the page has room',()=>{
+ const source='## 一个观点\n\n简短的解释。\n\n### 一个细节\n\n来自自己的观察。';
+ const s=planStory(source,DEFAULT_OPTIONS,{target:0,cover:false,ending:'none'},measure);
+ assert.equal(s.pages.length,1);assert.ok(s.pages[0].source.includes('### 一个细节'));
+});
+test('bounded pagination balances paragraph density instead of leaving a tiny final page',()=>{
+ const source=Array.from({length:13},(_,i)=>String(i+1)+'文'.repeat(20)).join('\n\n');
+ const s=planStory(source,DEFAULT_OPTIONS,{target:0,cover:false,ending:'none'},measure);
+ const scenes=layoutStory(s,measure);
+ const heights=scenes.map(s=>s.lines.at(-1)!.y+s.lines.at(-1)!.lineHeight-s.lines[0].y);
+ assert.ok(heights.length>=2);assert.ok(Math.max(...heights)-Math.min(...heights)<450);
+ assert.equal(s.pages.map(p=>p.source).join('\n\n'),source);
+});
+
+
+test('planned pages carry valid source ranges and semantic block ids',()=>{
+ const source='# 来源测试\r\n\r\n## 一个发现\r\n\r\n来自自己的原话。';
+ const story=planStory(source,DEFAULT_OPTIONS,{target:0,cover:false,ending:'none'},measure);
+ for(const page of story.pages){
+  assert.ok(page.sourceRanges?.length);assert.equal(page.sourceVersion,story.sourceHash);
+  for(const range of page.sourceRanges!){assert.ok(page.sourceIds.includes(range.blockId));assert.ok(source.slice(range.start,range.end).trim());}
+ }
+});
+
+
+test('table of contents follows actual continued pages, ordering and deletion',()=>{
+ let s=planStory('# 目录验证\n\n## 第一章\n\n开始。\n\n## 第二章\n\n后来的记录。',DEFAULT_OPTIONS,{target:0,cover:true,ending:'none',toc:'yes'},measure);
+ const first=s.pages.find(p=>p.role==='body'&&p.source.includes('## 第一章'))!;
+ const second=s.pages.find(p=>p.role==='body'&&p.source.includes('## 第二章'))!;
+ s=editPage(s,first.id,{source:'## 第一章\n\n'+ '这一段保留全部内容。'.repeat(100)});
+ let scenes=layoutStory(s,measure);let number=scenes.findIndex(p=>p.id===second.id)+1;
+ let text=scenes.filter(p=>p.role==='toc').flatMap(p=>p.lines.map(l=>l.text)).join('');
+ assert.ok(text.includes('第二章  ·  第 '+number+' 页'));
+ s=movePage(s,second.id,-1);scenes=layoutStory(s,measure);number=scenes.findIndex(p=>p.id===second.id)+1;
+ text=scenes.filter(p=>p.role==='toc').flatMap(p=>p.lines.map(l=>l.text)).join('');
+ assert.ok(text.includes('第二章  ·  第 '+number+' 页'));
+ s={...s,pages:s.pages.filter(p=>p.id!==first.id)};scenes=layoutStory(s,measure);
+ text=scenes.filter(p=>p.role==='toc').flatMap(p=>p.lines.map(l=>l.text)).join('');
+ assert.ok(!text.includes('第一章'));assert.ok(scenes.some(p=>p.warnings.some(w=>w.includes('移除'))));
+});
+test('regeneration remaps table of contents targets and manual edits stay manual',()=>{
+ let s=planStory('## 章节甲\n\n甲的正文。\n\n## 章节乙\n\n乙的正文。',DEFAULT_OPTIONS,{target:0,cover:true,ending:'none',toc:'yes'},measure);
+ s=rebuildStory(s,s.source,measure);const toc=s.pages.find(p=>p.role==='toc')!;
+ assert.ok(toc.tocEntries?.length);assert.ok(toc.tocEntries!.every(e=>s.pages.some(p=>p.id===e.targetPageId)));
+ s=editPage(s,toc.id,{source:'## 我自己写的导读\n\n用自己的话介绍这篇内容。'});
+ assert.equal(s.pages.find(p=>p.id===toc.id)!.tocEntries,undefined);
+ assert.ok(layoutStory(s,measure).find(p=>p.id===toc.id)!.lines.some(l=>l.text.includes('我自己写的导读')));
+});
+
+
+test('directory page numbers include the directory own continuation pages',()=>{
+ const source=Array.from({length:25},(_,i)=>'## 第 '+(i+1)+' 章：'+ '留住自己的真实细节'.repeat(2)+'\n\n自己的记录。').join('\n\n');
+ const story=planStory(source,DEFAULT_OPTIONS,{target:0,cover:true,ending:'none',toc:'yes'},measure);
+ const scenes=layoutStory(story,measure),toc=scenes.filter(s=>s.role==='toc');
+ assert.ok(toc.length>1);
+ const last=story.pages.at(-1)!;const number=scenes.findIndex(s=>s.id===last.id)+1;
+ assert.ok(toc.flatMap(s=>s.lines.map(l=>l.text)).join('').includes('第 '+number+' 页'));
+ assert.deepEqual(layoutStory(story,measure),scenes);
+});
+
+
+test('merging and splitting keep directory targets and the chosen photo crop',async()=>{
+ const {mergePage,splitPage}=await import('../src/studio/planner.ts');
+ let story=planStory('## 章节甲\n\n甲的正文。\n\n## 章节乙\n\n乙的正文。',DEFAULT_OPTIONS,{target:0,cover:false,ending:'none',toc:'yes'},measure);
+ const body=story.pages.filter(p=>p.role==='body');
+ story=editPage(story,body[1].id,{assetId:'photo',focusX:.2,focusY:.8,fit:'contain'});
+ story=mergePage(story,body[0].id);
+ const merged=story.pages.find(p=>p.id===body[0].id)!;
+ assert.equal(merged.focusX,.2);assert.equal(merged.focusY,.8);assert.equal(merged.assetId,'photo');
+ assert.ok(story.pages.find(p=>p.role==='toc')!.tocEntries!.every(e=>e.targetPageId===merged.id));
+ story=splitPage(story,merged.id,measure);
+ const entries=story.pages.find(p=>p.role==='toc')!.tocEntries!;
+ assert.notEqual(entries[0].targetPageId,entries[1].targetPageId);
+ assert.ok(entries.every(e=>story.pages.some(p=>p.id===e.targetPageId)));
 });
