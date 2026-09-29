@@ -2,15 +2,15 @@ import {useEffect,useRef,useState} from 'react';
 import {Modal} from '../components/Modal.tsx';
 import type {Story,StoryPage} from './model.ts';
 import {ROLE_NAMES,DIAGRAM_NAMES} from './model.ts';
-import {newPage,hashText,planStory} from './planner.ts';
+import {newPage,hashText,sourceBlocks} from './planner.ts';
 import {getAsset} from './database.ts';
 import {loadImage} from './media.ts';
-import {createMeasure} from '../core/renderer.ts';
+
 export function StoryboardAI({story,onApply,onClose}:{story:Story;onApply:(pages:StoryPage[])=>void;onClose:()=>void}){
  const [code,setCode]=useState(()=>{try{return sessionStorage.getItem('shiye:storyboard:code')||'';}catch{return '';}}),[busy,setBusy]=useState(false),[error,setError]=useState(''),[pages,setPages]=useState<StoryPage[]>([]),[photos,setPhotos]=useState(false),[ready,setReady]=useState(false);
  const request=useRef<AbortController|null>(null),version=useRef(story.id+':'+hashText(story.source));
- const source=planStory(story.source,story.options,{...story.settings,cover:false,ending:'none',toc:'no'},createMeasure(story.options));
- const [blocks]=useState(()=>source.pages.map(p=>({id:p.id,text:p.source})));
+
+ const [blocks]=useState(()=>sourceBlocks(story.source));
  useEffect(()=>{void fetch('/api/status').then(r=>r.json()).then(s=>setReady(s.deepseek===true)).catch(()=>setError('无法连接 AI 服务。'));return()=>request.current?.abort();},[]);
  async function generate(){
   if(busy)return;setBusy(true);setError('');const controller=new AbortController();request.current=controller;

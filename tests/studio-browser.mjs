@@ -43,6 +43,30 @@ try{
  const manifest=JSON.parse(new TextDecoder().decode(bundle['manifest.json']));
  assert.ok(manifest.story.pages.some(p=>p.source.includes('手动修改')));
  assert.ok(Object.keys(bundle).some(k=>k.startsWith('media/')));
+
+ const photoPixel=await page.evaluate(async encoded=>{
+  const img=new Image();img.src='data:image/png;base64,'+encoded;await img.decode();const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const ctx=c.getContext('2d');ctx.drawImage(img,0,0);return [...ctx.getImageData(300,300,1,1).data];
+ },Buffer.from(p).toString('base64'));
+ assert.ok(photoPixel[1]>90&&photoPixel[1]>photoPixel[0]*2,'The uploaded green photo is present in the PNG');
+ const originalId=manifest.story.id;
+ await page.getByLabel('选择作品备份').setInputFiles({name:'roundtrip.zip',mimeType:'application/zip',buffer:backupBytes});
+ await page.getByText('已恢复为新作品，原有作品保留。',{exact:true}).waitFor();
+ await page.getByRole('tab',{name:'分镜',exact:true}).click();
+ await page.getByRole('button',{name:'编辑第 2 页'}).click();
+ assert.equal(await page.getByLabel('本页文字').inputValue(),'这一句是手动修改，必须保留 ✨');
+ assert.ok(await page.getByLabel('本页文字').isDisabled());
+ await page.getByRole('button',{name:'保存并关闭',exact:true}).click();
+ const againPromise=page.waitForEvent('download');await page.getByRole('button',{name:'整篇 ZIP',exact:true}).click();
+ const again=unzipSync(await readFile(await(await againPromise).path()));
+ assert.deepEqual(Object.keys(again),Object.keys(entries));
+ for(const name of Object.keys(entries))assert.deepEqual(again[name],entries[name],'Restored page pixels match '+name);
+ const before=await page.evaluate(async()=>{const db=await import('/src/studio/database.ts');return (await db.allStories()).length;});
+ await page.getByLabel('选择作品备份').setInputFiles({name:'broken.zip',mimeType:'application/zip',buffer:Buffer.from('broken')});
+ await page.getByRole('alert').filter({hasText:'无法读取备份'}).waitFor();
+ const after=await page.evaluate(async()=>{const db=await import('/src/studio/database.ts');return (await db.allStories()).map(s=>s.id);});
+ assert.equal(after.length,before);assert.ok(after.includes(originalId));
+ await page.getByRole('button',{name:'关闭提示',exact:true}).click();
+
  await page.screenshot({path:'artifacts/shiye-1.1-mobile.png',fullPage:true});
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  assert.deepEqual(errors,[]);

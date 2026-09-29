@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import { mkdir,readFile,writeFile } from 'node:fs/promises';
 import { unzipSync } from 'fflate';
-const base=process.env.TEST_URL||'http://localhost:5173';
+const url=new URL(process.env.TEST_URL||'http://localhost:5173');url.searchParams.set('classic','1');const base=url.toString();
 await mkdir('artifacts',{recursive:true});
 const browser=await chromium.launch({channel:'msedge',headless:true});
 let checks=0;const ok=msg=>{checks++;console.log(`PASS ${msg}`);};

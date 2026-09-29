@@ -1,26 +1,26 @@
 import type { Story, StorySettings, StoryPage } from './model.ts';
 import type { CardOptions, MeasureText } from '../core/types.ts';
-import { documentTitle } from '../core/markdown.ts';
+import { documentTitle, parseMarkdown } from '../core/markdown.ts';
 import { makeId } from '../core/storage.ts';
 import { contentHeight, pageCapacity, roughMeasure } from './scene.ts';
 export function hashText(s:string){let n=2166136261;for(let i=0;i<s.length;i++)n=Math.imul(n^s.charCodeAt(i),16777619);return (n>>>0).toString(36);}
 export function newPage(source:string,role:StoryPage['role']='body',sourceIds:string[]=[]):StoryPage{return {id:makeId(),role,source,sourceIds,locked:false,diagram:'none',fit:'cover',focusX:.5,focusY:.5,layout:'plain'};}
-function regions(source:string):string[]{
-  const out:string[]=[];let lines:string[]=[];let code=false;
+function regions(source:string,initialCode=false):string[]{
+  const out:string[]=[];let lines:string[]=[];let code=initialCode;
   for(const line of source.replace(/\r\n?/g,'\n').split('\n')){
-    if(/^\s*~~~/.test(line)||/^\s*```/.test(line))code=!code;
+    if(/^\s*```/.test(line))code=!code;
     if(!code&&/^\s*(---+|\*\*\*+|___+)\s*$/.test(line)){if(lines.join('\n').trim())out.push(lines.join('\n').trim());lines=[];}
     else {if(!code&&/^#{2,6}\s+/.test(line)&&lines.join('\n').trim()){out.push(lines.join('\n').trim());lines=[];}lines.push(line);}
   }
   if(lines.join('\n').trim())out.push(lines.join('\n').trim());return out;
 }
-export function splitContent(source:string,options:CardOptions,measure:MeasureText=roughMeasure):string[]{
-  const capacity=pageCapacity(options);const out:string[]=[];
-  for(const region of regions(source)){
-    let rest=region;let continued=false;
+export function splitContent(source:string,options:CardOptions,measure:MeasureText=roughMeasure,initialCode=false):string[]{
+  const capacity=pageCapacity(options);const out:string[]=[];let continued=initialCode;
+  for(const region of regions(source,initialCode)){
+    let rest=region;
     const measured=(s:string)=>contentHeight((continued?'```\n':'')+s,options,measure);
     while(rest){
-      if(measured(rest)<=capacity){out.push(rest);break;}
+      if(measured(rest)<=capacity){out.push(rest);if([...rest.matchAll(/^\s*```/gm)].length%2)continued=!continued;break;}
       const segments=Array.from(new Intl.Segmenter('zh-CN',{granularity:'grapheme'}).segment(rest));
       let lo=1,hi=segments.length;
       while(lo<hi){const mid=Math.ceil((lo+hi)/2);const end=mid===segments.length?rest.length:segments[mid].index;
@@ -47,7 +47,7 @@ export function planStory(source:string,options:CardOptions,settings:StorySettin
     const parts=splitContent(source,options,measure);
     let inCode=false;
     for(let i=0;i<parts.length;i++){const page=newPage(parts[i],'body',[i+':'+hashText(parts[i])]);page.codeContinuation=inCode;pages.push(page);if([...parts[i].matchAll(/^\s*```/gm)].length%2)inCode=!inCode;}
-    const headings=[...source.matchAll(/^##\s+(.+)$/gm)].map(m=>m[1]);
+    const headings=parseMarkdown(source).filter(b=>b.kind==='heading'&&b.level===2).map(b=>b.text);
     if(settings.toc==='yes'||(settings.toc!=='no'&&headings.length>=4&&pages.length>=8)){
       if(headings.length)pages.splice(settings.cover?1:0,0,newPage('## 这一篇，慢慢读\n\n'+headings.map((t,i)=>(i+1)+'. '+t).join('\n'),'toc',['headings']));
     }
@@ -69,9 +69,45 @@ export function movePage(s:Story,id:string,delta:number):Story{
 }
 export function rebuildStory(s:Story,source:string,measure:MeasureText=roughMeasure):Story{
   const next=planStory(source,s.options,s.settings,measure);
+  const used=new Set<string>();
+  next.pages=next.pages.map(p=>{
+    const old=s.pages.find(old=>!old.locked&&!used.has(old.id)&&old.role===p.role&&(old.source===p.source||p.role==='cover'));
+    if(!old)return p;used.add(old.id);
+    return {...p,id:old.id,assetId:old.assetId,fit:old.fit,focusX:old.focusX,focusY:old.focusY,diagram:old.diagram,layout:old.layout};
+  });
+  const changedPhotos=s.pages.filter(p=>p.assetId&&!p.locked&&!used.has(p.id));
+  if(changedPhotos.length)next.warnings.push(changedPhotos.length+' 个含照片页面的内容结构已变化，照片仍在素材库，请重新选择搭配。');
   const locked=s.pages.map((p,i)=>({p,i})).filter(({p})=>p.locked);
   for(const {p,i}of locked){const same=next.pages.findIndex(n=>n.role===p.role&&n.source===p.source);if(same>=0)next.pages.splice(same,1);next.pages.splice(Math.min(i,next.pages.length),0,p);}
   if(locked.length)next.warnings.push('锁定页已保留；新编排内容完整保留，请检查是否存在重复页。');
   if(next.pages.length>60)throw new Error('保留锁定页后超过 60 页，请先整理作品。');
   return {...next,id:s.id,revision:s.revision};
+}
+// AI source excerpts are independent of printable page capacity.
+export function sourceBlocks(source:string):{id:string;text:string}[]{
+ if(source.length>20000)throw new Error('每篇最多 20,000 字符。');
+ const out:{id:string;text:string}[]=[];let current='';let offset=0;
+ const flush=()=>{if(current){out.push({id:'source:'+offset+':'+hashText(current),text:current});offset+=current.length;current='';}};
+ for(const part of new Intl.Segmenter('zh-CN',{granularity:'grapheme'}).segment(source)){
+  if(current.length+part.segment.length>1200)flush();current+=part.segment;
+  if(current.length>=700&&current.endsWith('\n\n'))flush();
+ }
+ flush();return out;
+}
+
+export function splitPage(story:Story,id:string,measure:MeasureText=roughMeasure):Story{
+ const page=story.pages.find(p=>p.id===id);if(!page)throw new Error('没有找到这一页。');
+ if(page.locked)throw new Error('这一页已锁定，请先解锁。');
+ const chunks=splitContent(page.source,story.options,measure,page.codeContinuation);
+ if(chunks.length<2)return story;
+ let inCode=!!page.codeContinuation;
+ const parts=chunks.map((source,i)=>{
+  const part=i===0?{...page,source}:newPage(source,'body',page.sourceIds);
+  part.codeContinuation=inCode;
+  if([...source.matchAll(/^\s*```/gm)].length%2)inCode=!inCode;
+  return part;
+ });
+ const pages=[...story.pages];pages.splice(pages.findIndex(p=>p.id===id),1,...parts);
+ if(pages.length>60)throw new Error('拆分后超过 60 页。');
+ return {...story,pages,updatedAt:Date.now()};
 }

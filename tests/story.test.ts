@@ -64,3 +64,39 @@ test('comparison cards use separate columns instead of a vertical list',()=>{
 });
 
 
+
+test('AI source excerpts preserve long multi-heading input and emoji without page limits',async()=>{
+ const {sourceBlocks}=await import('../src/studio/planner.ts');
+ const source=Array.from({length:100},(_,i)=>'## 章节 '+i+'\n\n自己的经历👨‍👩‍👧‍👦✨'+('真实。'.repeat(20))).join('\n\n');
+ const blocks=sourceBlocks(source);
+ assert.ok(blocks.length<=60);assert.equal(blocks.map(b=>b.text).join(''),source);
+ assert.deepEqual(sourceBlocks(source),blocks);assert.equal(new Set(blocks.map(b=>b.id)).size,blocks.length);
+});
+
+test('regenerating keeps photos, crop choices and stable identities on matched pages',()=>{
+ let s=planStory('# 我的故事\n\n## 一个发现\n\n真实的经历。',DEFAULT_OPTIONS,{target:0,cover:true,ending:'none'});
+ const cover=s.pages[0],body=s.pages.at(-1)!;
+ s=editPage(s,cover.id,{assetId:'photo-cover',focusX:.2});
+ s=editPage(s,body.id,{assetId:'photo-body',fit:'contain'});
+ const next=rebuildStory(s,'# 新的故事标题\n\n## 一个发现\n\n真实的经历。',measure);
+ assert.equal(next.pages[0].assetId,'photo-cover');assert.equal(next.pages[0].focusX,.2);
+ const same=next.pages.find(p=>p.source===body.source)!;
+ assert.equal(same.id,body.id);assert.equal(same.assetId,'photo-body');assert.equal(same.fit,'contain');
+});
+
+test('table of contents only includes real headings, not code examples',()=>{
+ const source='# 教程\n\n## 真实章节\n\n正文。\n\n```md\n## 示例标题不可进入目录\n```';
+ const s=planStory(source,DEFAULT_OPTIONS,{target:0,cover:true,ending:'none',toc:'yes'});
+ const toc=s.pages.find(p=>p.role==='toc')!;
+ assert.ok(toc.source.includes('真实章节'));assert.ok(!toc.source.includes('示例标题'));
+});
+test('manual split keeps literal code across every continued page',async()=>{
+ const {splitPage}=await import('../src/studio/planner.ts');
+ let s=planStory('占位',DEFAULT_OPTIONS,{target:0,cover:false,ending:'none'});
+ const code='const title = "**符号不能消失**";\n'.repeat(60);
+ s=editPage(s,s.pages[0].id,{source:'```js\n'+code+'```'});
+ const split=splitPage(s,s.pages[0].id,measure);
+ assert.ok(split.pages.length>1);
+ const rendered=layoutStory(split,measure).flatMap(s=>s.lines.map(l=>l.text)).join('');
+ assert.equal(rendered.replace(/\s/g,''),code.replace(/\s/g,''));
+});

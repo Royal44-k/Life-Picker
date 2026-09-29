@@ -22,13 +22,13 @@
 - 新接口与现有接口使用同一来源、连接码、限流与取消校验。
 
 ## Tasks
-1. [ ] v1 归档：白名单文件生成带 SHA256 的 ZIP；解包逐文件核对；建立本地 Git 基线与标签（工具允许时）；记录测试结果。
-2. [ ] 作品引擎：`src/studio/model.ts`、`planner.ts`、`scene.ts`；先写内容守恒、分页目标、硬分页、长标题、图解边界测试，再实现。接口 `planStory(source, options, settings): Story`、`layoutStory(story, measure): Scene[]`；场景持有确切文字、形状和图片槽。
-3. [ ] 素材与作品：`src/studio/database.ts`、`media.ts`、`backup.ts`；旧稿复制、事务保存、修订冲突、图片解码及缩放、ZIP 备份/校验恢复。浏览器测试真实 IndexedDB 和恢复。
-4. [ ] 手机工作台：`src/studio/Studio.tsx`、`StoryEditor.tsx`、`ScenePreview.tsx`、`studio.css`；来源/分镜/样式/预览、上传图片、结构模板、图解、修改拆分合并排序锁定、独立经典工作台入口。
-5. [ ] AI 编排：`server/storyboard.mjs` 与现有 handler 集成；先测试认证、错误引用、截断、取消和请求形状，再实现结构化建议预览/应用。
-6. [ ] 一致导出：同一 Scene 绘制为 PNG、ZIP、可长按图片；对照页面编辑与导出；预算及缺失素材检查。
-7. [ ] 验证交付：npm test、build、原有浏览器回归、新工作台移动浏览器和下载文件检查；独立审查；更新中文操作指南和变更记录。
+1. [x] v1 归档：白名单文件生成带 SHA256 的 ZIP；解包逐文件核对；建立本地 Git 基线与标签（工具允许时）；记录测试结果。
+2. [x] 作品引擎：`src/studio/model.ts`、`planner.ts`、`scene.ts`；先写内容守恒、分页目标、硬分页、长标题、图解边界测试，再实现。接口 `planStory(source, options, settings): Story`、`layoutStory(story, measure): Scene[]`；场景持有确切文字、形状和图片槽。
+3. [x] 素材与作品：`src/studio/database.ts`、`media.ts`、`backup.ts`；旧稿复制、事务保存、修订冲突、图片解码及缩放、ZIP 备份/校验恢复。浏览器测试真实 IndexedDB 和恢复。
+4. [x] 手机工作台：`src/studio/Studio.tsx`、`StoryEditor.tsx`、`ScenePreview.tsx`、`studio.css`；来源/分镜/样式/预览、上传图片、结构模板、图解、修改拆分合并排序锁定、独立经典工作台入口。
+5. [x] AI 编排：`server/storyboard.mjs` 与现有 handler 集成；先测试认证、错误引用、截断、取消和请求形状，再实现结构化建议预览/应用。
+6. [x] 一致导出：同一 Scene 绘制为 PNG、ZIP、可长按图片；对照页面编辑与导出；预算及缺失素材检查。
+7. [x] 验证交付：npm test、build、原有浏览器回归、新工作台移动浏览器和下载文件检查；独立审查；更新中文操作指南和变更记录。
 
 每项按“失败测试 → 实现 → 通过 → 记录”推进。纯文档和配置不编写镜像测试。
 
@@ -38,3 +38,8 @@ v1.2：随心记、小拾、素材复用、回忆图文及视频；v1.3：来源
 ## Ledger
 - 2026-09-29：用户确认按序执行。先完成 v1.1 可验收增量，再沿路线继续；保持同一项目目录以便已有启动脚本和手机入口继续使用。
 - Ruling: 不额外创建工作树；当前目录尚未初始化 Git，先归档再在开发分支工作。风险由可校验的 v1 归档和后续提交回滚承担。
+
+- 2026-09-29：本轮任务 1–7 的本地首个增量完成；v1 归档/哈希/标签完成，新版 34 项测试、正式构建、经典/新工作台浏览器、IndexedDB 与 PWA 检查通过。详见 release-v1.1.md。
+- 独立审查：服务端文件及最新关键代码摘录；完整前端读取工具阻塞，未声称全量独立审查。已修复确认的 Important 与两项 Minor，并补回归。
+- Ruling: 此处完成标记指本计划首个本地增量，不等同整份 next-design 全部达成。章节树、有界分页、目录页码、12 结构模板和单页 AI 重做进入下一增量，先于随心记继续完善；移动真机和公网部署仍有外部条件。
+- Ruling: 保留开发分支并创建本地版本标签，不推送、不合并主分支；用户正在此目录试用，后续沿路线持续开发，无需额外 Git 菜单确认。
