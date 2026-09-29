@@ -12,7 +12,7 @@ try{
   const hidden=(await j.listEntries()).length===0;let protectedByTrashedEntry='';try{await db.deleteAssetPermanently(photo.id);}catch(e){protectedByTrashedEntry=e.message;}
   const removed=(await j.listEntries(true))[0];await j.deleteEntryPermanently(removed.id,removed.revision);
   let protectedByMemory='';try{await db.deleteAssetPermanently(photo.id);}catch(e){protectedByMemory=e.message;}
-  const memories=await j.listMemories();await j.deleteMemory(memories[0].id,memories[0].revision);await db.deleteAssetPermanently(photo.id);
+  const memories=await j.listMemories();await j.deleteMemory(memories[0].id,await j.trashMemory(memories[0].id,memories[0].revision));await db.deleteAssetPermanently(photo.id);
   const gone=!(await db.getAsset(photo.id));const invalid=m.newEntry('2026-09-29');invalid.text='缺图';invalid.assetIds=[photo.id];let missing='';try{await j.saveEntry(invalid,0);}catch(e){missing=e.name;}
   return {revision,conflict,loaded,protectedByEntry,hidden,protectedByTrashedEntry,protectedByMemory,gone,missing,entries:(await j.listEntries()).length};
  });

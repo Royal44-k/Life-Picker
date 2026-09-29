@@ -21,22 +21,24 @@ export const saveMemory=(memory:MemoryAlbum,expected:number)=>saveRecord('memori
 export async function listEntries(includeTrashed=false):Promise<JournalEntry[]>{
  const db=await openDB(),tx=db.transaction('journals');let entries:JournalEntry[]=[];tx.objectStore('journals').getAll().onsuccess=e=>{entries=(e.target as IDBRequest).result;};return finish(db,tx,()=>entries.map(validateEntry).filter(e=>includeTrashed||!e.trashedAt).sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt));
 }
-export async function listMemories():Promise<MemoryAlbum[]>{const db=await openDB(),tx=db.transaction('memories');let rows:MemoryAlbum[]=[];tx.objectStore('memories').getAll().onsuccess=e=>{rows=(e.target as IDBRequest).result;};return finish(db,tx,()=>rows.map(validateMemory).sort((a,b)=>b.updatedAt-a.updatedAt));}
-async function trash(id:string,expected:number,trashed:boolean){
- const db=await openDB(),tx=db.transaction('journals','readwrite'),store=tx.objectStore('journals');let error='',revision=0;
- store.get(id).onsuccess=e=>{const entry=(e.target as IDBRequest).result as JournalEntry|undefined;
+export async function listMemories(includeTrashed=false):Promise<MemoryAlbum[]>{const db=await openDB(),tx=db.transaction('memories');let rows:MemoryAlbum[]=[];tx.objectStore('memories').getAll().onsuccess=e=>{rows=(e.target as IDBRequest).result;};return finish(db,tx,()=>rows.map(validateMemory).filter(m=>includeTrashed||!m.trashedAt).sort((a,b)=>b.updatedAt-a.updatedAt));}
+async function trash(name:'journals'|'memories',id:string,expected:number,trashed:boolean){
+ const db=await openDB(),tx=db.transaction(name,'readwrite'),store=tx.objectStore(name);let error='',revision=0;
+ store.get(id).onsuccess=e=>{const entry=(e.target as IDBRequest).result as RecordType|undefined;
   if(!entry){error='记录已不存在，请刷新列表。';tx.abort();return;}if(entry.revision!==expected){error='另一窗口已更新这条记录，请重新打开后再操作。';tx.abort();return;}
   revision=expected+1;store.put({...entry,trashedAt:trashed?Date.now():undefined,revision,updatedAt:Date.now()});
  };try{return await finish(db,tx,()=>revision);}catch(e){if(error)throw new Error(error);throw e;}
 }
-export const trashEntry=(id:string,expected:number)=>trash(id,expected,true);
-export const restoreEntry=(id:string,expected:number)=>trash(id,expected,false);
+export const trashEntry=(id:string,expected:number)=>trash('journals',id,expected,true);
+export const restoreEntry=(id:string,expected:number)=>trash('journals',id,expected,false);
 async function remove(name:'journals'|'memories',id:string,expected:number){
  const db=await openDB(),tx=db.transaction(name,'readwrite'),store=tx.objectStore(name);let error='';
- store.get(id).onsuccess=e=>{const record=(e.target as IDBRequest).result;if(!record)return;if(record.revision!==expected){error='另一窗口已更新这条内容，请重新打开后再删除。';tx.abort();return;}if(name==='journals'&&!record.trashedAt){error='请先将记录移入回收站。';tx.abort();return;}store.delete(id);};
+ store.get(id).onsuccess=e=>{const record=(e.target as IDBRequest).result;if(!record)return;if(record.revision!==expected){error='另一窗口已更新这条内容，请重新打开后再删除。';tx.abort();return;}if(!record.trashedAt){error='请先将记录移入回收站。';tx.abort();return;}store.delete(id);};
  try{await finish(db,tx,()=>undefined);}catch(e){if(error)throw new Error(error);throw e;}
 }
 export const deleteEntryPermanently=(id:string,expected:number)=>remove('journals',id,expected);
+export const trashMemory=(id:string,expected:number)=>trash('memories',id,expected,true);
+export const restoreMemory=(id:string,expected:number)=>trash('memories',id,expected,false);
 export const deleteMemory=(id:string,expected:number)=>remove('memories',id,expected);
 
 export async function importJournalData(bundle:import('./backup.ts').JournalBundle):Promise<void>{

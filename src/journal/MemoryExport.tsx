@@ -1,0 +1,17 @@
+import {useEffect,useMemo,useState} from 'react';
+import {Modal} from '../components/Modal.tsx';
+import {confirmedScenes,scenePng,storyZip} from '../studio/render.ts';
+import {download,safeName} from '../core/export.ts';
+import type {CardOptions} from '../core/types.ts';
+import {memoryToStory} from './model.ts';
+import type {MemoryAlbum} from './model.ts';
+export function MemoryExport({album,options,onClose}:{album:MemoryAlbum;options:CardOptions;onClose:()=>void}){
+ const [index,setIndex]=useState(0),[image,setImage]=useState<{blob:Blob;url:string;index:number}|null>(null),[busy,setBusy]=useState(''),[error,setError]=useState(''),[loading,setLoading]=useState(true);
+ const result=useMemo(()=>{try{const story=memoryToStory(album,options);return {story,scenes:confirmedScenes(story)};}catch(e){return {error:(e as Error).message};}},[album,options]);
+ useEffect(()=>{let active=true,url='';setImage(null);setError('');setLoading(true);if(!result.scenes){setLoading(false);return;}void scenePng(result.scenes[index],options).then(blob=>{if(active){url=URL.createObjectURL(blob);setImage({blob,url,index});}}).catch(e=>{if(active)setError(e.message);}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;if(url)URL.revokeObjectURL(url);};},[result,index,options]);
+ const filename=safeName(album.title)+'-'+String(index+1).padStart(2,'0')+'.png';
+ async function zip(){if(!result.story||busy)return;setBusy('正在准备全部页面…');setError('');try{download(await storyZip(result.story,setBusy),safeName(album.title)+'-图文册.zip');}catch(e){setError((e as Error).message);}finally{setBusy('');}}
+ async function share(){if(!image||image.index!==index)return;try{await navigator.share({files:[new File([image.blob],filename,{type:'image/png'})],title:album.title});}catch(e){if((e as Error).name!=='AbortError')setError('系统分享未完成，可以改用下载或长按图片保存。');}}
+ const canShare=image&&typeof navigator.canShare==='function'&&navigator.canShare({files:[new File([image.blob],filename,{type:'image/png'})]});
+ return <Modal title="回忆图文册" onClose={()=>{if(!busy)onClose();}} wide><p className="journal-small">使用已确认的文字、照片与顺序。选中哪一页，就保存哪一页；也可下载整册 ZIP。</p>{result.error?<p className="journal-error" role="alert">{result.error}</p>:<><div className="memory-export-nav"><button disabled={!!busy||index===0} onClick={()=>setIndex(i=>i-1)}>上一页</button><select aria-label="选择回忆导出页" disabled={!!busy} value={index} onChange={e=>setIndex(Number(e.target.value))}>{result.scenes!.map((s,i)=><option key={s.id} value={i}>第 {i+1} / {result.scenes!.length} 页</option>)}</select><button disabled={!!busy||index===result.scenes!.length-1} onClick={()=>setIndex(i=>i+1)}>下一页</button></div><div className="memory-export-image">{loading?<p role="status">正在绘制第 {index+1} 页…</p>:image&&<img src={image.url} alt={'回忆图文第 '+(index+1)+' 页，可长按保存'}/>}</div><div className="memory-output"><button className="journal-primary" disabled={!!busy||loading||!image||image.index!==index} onClick={()=>{if(image&&image.index===index)download(image.blob,filename);}}>下载选中这一页</button>{canShare&&<button className="journal-secondary" disabled={!!busy||loading} onClick={()=>void share()}>系统分享 / 存储图像</button>}<button className="journal-secondary" disabled={!!busy} onClick={()=>void zip()}>下载整册 ZIP</button></div><p className="journal-small">iPhone 可以长按上方图片选择“存储到照片”，也可使用系统分享。</p></>}{busy&&<p role="status">{busy}</p>}{error&&<p className="journal-error" role="alert">{error}</p>}</Modal>;
+}

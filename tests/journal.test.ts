@@ -15,3 +15,8 @@ test('memory snapshots remain stable when original entries change and preserve c
  const story=memoryToStory(album,DEFAULT_OPTIONS);assert.deepEqual(story.pages.filter(p=>p.assetId).map(p=>p.assetId),['photo-a','photo-b']);assert.ok(story.source.includes('第一天看到的风景。'));assert.ok(!story.source.includes('原记录后来又修改了'));
  assert.throws(()=>newMemory('没有素材',[]),/记录/);assert.throws(()=>validateMemory({...album,items:[]}),/内容/);
 });
+test('memory opening text is present in cover and exports without losing chosen photo order',()=>{
+ const entry=newEntry('2026-09-03');entry.text='桥边的树';entry.assetIds=['tree'];const album={...newMemory('秋天的片段',[entry]),intro:'走慢一点，看见了这些。'};
+ const story=memoryToStory(album,DEFAULT_OPTIONS);assert.ok(story.pages[0].source.includes('秋天的片段'));assert.ok(story.pages[0].source.includes('走慢一点，看见了这些。'));assert.ok(story.source.includes(album.intro));assert.deepEqual(story.pages.filter(p=>p.assetId).map(p=>p.assetId),['tree']);
+ assert.throws(()=>validateMemory({...album,intro:'文'.repeat(4001)}),/开场/);
+});
