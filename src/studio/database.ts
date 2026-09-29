@@ -4,12 +4,12 @@ import {loadDrafts} from '../core/storage.ts';
 import {planStory} from './planner.ts';
 import {DEFAULT_SETTINGS} from './model.ts';
 const DB='shiye-studio-v2';
-function openDB():Promise<IDBDatabase>{return new Promise((resolve,reject)=>{
- const req=indexedDB.open(DB,1);
- req.onupgradeneeded=()=>{for(const name of ['stories','assets','meta'])req.result.createObjectStore(name,{keyPath:'id'});};
- req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(new Error('无法打开本机存储，请关闭无痕模式或备份后释放空间。'));req.onblocked=()=>reject(new Error('另一窗口正在升级存储，请关闭后重试。'));
+export function openDB():Promise<IDBDatabase>{return new Promise((resolve,reject)=>{
+ let failed=false;const req=indexedDB.open(DB,2);
+ req.onupgradeneeded=()=>{for(const name of ['stories','assets','meta','journals','memories'])if(!req.result.objectStoreNames.contains(name))req.result.createObjectStore(name,{keyPath:'id'});};
+ req.onsuccess=()=>{if(failed){req.result.close();return;}req.result.onversionchange=()=>req.result.close();resolve(req.result);};req.onerror=()=>reject(new Error('无法打开本机存储，请关闭无痕模式或备份后释放空间。'));req.onblocked=()=>{failed=true;reject(new Error('另一窗口正在升级存储，请关闭后重试。'));};
 });}
-function finish<T>(db:IDBDatabase,tx:IDBTransaction,result:()=>T):Promise<T>{return new Promise((resolve,reject)=>{tx.oncomplete=()=>{db.close();try{resolve(result());}catch(e){reject(e);}};tx.onerror=()=>{};tx.onabort=()=>{db.close();reject(tx.error||new Error('保存中断，当前修改尚未保存。'));};});}
+export function finish<T>(db:IDBDatabase,tx:IDBTransaction,result:()=>T):Promise<T>{return new Promise((resolve,reject)=>{tx.oncomplete=()=>{db.close();try{resolve(result());}catch(e){reject(e);}};tx.onerror=()=>{};tx.onabort=()=>{db.close();reject(tx.error||new Error('保存中断，当前修改尚未保存。'));};});}
 export async function allStories():Promise<Story[]>{const db=await openDB();const tx=db.transaction('stories');let rows:Story[]=[];tx.objectStore('stories').getAll().onsuccess=e=>{rows=(e.target as IDBRequest).result;};return finish(db,tx,()=>rows.map(validateStory).sort((a,b)=>b.updatedAt-a.updatedAt));}
 export async function saveStory(story:Story,expected:number):Promise<number>{
  validateStory(story);const db=await openDB();const tx=db.transaction(['stories','assets'],'readwrite');const store=tx.objectStore('stories');
@@ -90,17 +90,27 @@ async function updateTrash(id:string,trashed:boolean):Promise<void>{
 }
 export const trashAsset=(id:string)=>updateTrash(id,true);
 export const restoreAsset=(id:string)=>updateTrash(id,false);
+export async function otherAssetUsage():Promise<Record<string,{id:string;title:string}[]>>{
+ const db=await openDB(),tx=db.transaction(['journals','memories']);const result:Record<string,{id:string;title:string}[]>={};
+ for(const store of ['journals','memories'])tx.objectStore(store).getAll().onsuccess=e=>{
+  for(const row of (e.target as IDBRequest).result){
+   const ids:string[]=store==='journals'?row.assetIds:row.items.flatMap((i:{assetIds:string[]})=>i.assetIds);
+   for(const id of new Set(ids))(result[id]??=[]).push({id:store+':'+row.id,title:store==='journals'?'随心记 · '+row.date+(row.trashedAt?'（回收站）':''):'回忆册 · '+row.title});
+  }
+ };return finish(db,tx,()=>result);
+}
 export async function deleteAssetPermanently(id:string):Promise<void>{
- const db=await openDB();const tx=db.transaction(['assets','stories'],'readwrite');let reason='';
+ const db=await openDB();const tx=db.transaction(['assets','stories','journals','memories'],'readwrite');let reason='';
  const assets=tx.objectStore('assets');
  assets.get(id).onsuccess=e=>{
   const asset=(e.target as IDBRequest).result as MediaAsset|undefined;if(!asset)return;
   if(!asset.trashedAt){reason='请先将照片移入回收站；已恢复的照片不会被直接删除。';tx.abort();return;}
-  tx.objectStore('stories').getAll().onsuccess=e=>{
-   const stories=(e.target as IDBRequest).result as Story[];
-   const used=stories.filter(s=>s.pages.some(p=>p.assetId===id));
-   if(used.length){reason='照片仍用于 '+used.length+' 个作品，请先从对应页面移除照片。';tx.abort();return;}
-   assets.delete(id);
+  let remaining=3;const uses:string[]=[];
+  for(const name of ['stories','journals','memories'])tx.objectStore(name).getAll().onsuccess=e=>{
+   const rows=(e.target as IDBRequest).result;
+   const count=rows.filter((row:Story&{assetIds:string[];items:{assetIds:string[]}[]})=>name==='stories'?row.pages.some(p=>p.assetId===id):name==='journals'?row.assetIds.includes(id):row.items.some(i=>i.assetIds.includes(id))).length;
+   if(count)uses.push(count+' 个'+(name==='stories'?'作品':name==='journals'?'随心记':'回忆册'));
+   if(--remaining===0){if(uses.length){reason='照片仍用于 '+uses.join('、')+'，请先从这些内容中移除照片。';tx.abort();}else assets.delete(id);}
   };
  };
  try{await finish(db,tx,()=>undefined);}catch(e){if(reason)throw new Error(reason);throw e;}

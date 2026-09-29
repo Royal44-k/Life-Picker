@@ -1,7 +1,7 @@
 import {useEffect,useState} from 'react';
 import {ImagePlus,Trash2,RotateCcw,X} from 'lucide-react';
 import type {MediaAsset,Story} from './model.ts';
-import {allStories,trashAsset,restoreAsset,deleteAssetPermanently} from './database.ts';
+import {allStories,otherAssetUsage,trashAsset,restoreAsset,deleteAssetPermanently} from './database.ts';
 import {Modal} from '../components/Modal.tsx';
 
 export function AssetThumb({asset}:{asset:MediaAsset}){
@@ -28,6 +28,7 @@ export function MediaPanel({assets,story,busy,onUpload,onUseCover,onRefresh,befo
   for(const s of docs)for(const id of new Set(s.pages.flatMap(p=>p.assetId?[p.assetId]:[]))){
    (map[id]??=[]).push({id:s.id,title:s.title});
   }
+  const linked=await otherAssetUsage();for(const [id,refs] of Object.entries(linked))(map[id]??=[]).push(...refs);
   setUsage(map);return map;
  }
  async function show(next:'trash'|MediaAsset){
@@ -48,7 +49,7 @@ export function MediaPanel({assets,story,busy,onUpload,onUseCover,onRefresh,befo
   setLocalError('');setWorking('正在检查引用…');
   try{
    await beforePermanentDelete();const current=await refreshUsage();
-   if(current[asset.id]?.length)throw new Error('照片仍被作品使用，请先从对应页面移除。');
+   if(current[asset.id]?.length)throw new Error('照片仍被作品或记录使用，请先从对应内容移除。');
    if(!confirm('永久删除“'+asset.name+'”？拾页中的副本将无法恢复，手机原图不受影响。'))return;
    await deleteAssetPermanently(asset.id);await onRefresh();if(undo?.id===asset.id)setUndo(null);notify('已永久删除拾页中的照片副本。');
   }catch(e){report(e);}finally{setWorking('');}
@@ -64,9 +65,9 @@ export function MediaPanel({assets,story,busy,onUpload,onUseCover,onRefresh,befo
    {localError&&<p className="next-error" role="alert">{localError}</p>}
    {working&&<p role="status" className="next-notice">{working}</p>}
    {dialog==='trash'?<>
-    <p className="next-hint">回收站保留拾页中的副本，已使用的页面仍正常显示。先解除作品中的引用，才能永久删除；手机原图不受影响。</p>
-    {!trash.length?<p className="next-empty">回收站是空的。</p>:<div className="next-trash-list">{trash.map(a=><article key={a.id}><AssetThumb asset={a}/><div><strong>{a.name}</strong><p>{usage[a.id]?.length?'仍用于 '+usage[a.id].length+' 个作品':'未被作品使用'}</p>{!!usage[a.id]?.length&&<details><summary>查看对应作品</summary>{usage[a.id].map(s=><p key={s.id}>{s.title}</p>)}</details>}<div className="next-dialog-actions"><button className="next-secondary" aria-label={'恢复照片：'+a.name} disabled={loading} onClick={()=>void restore(a)}>恢复照片</button><button className="next-text-action next-danger" aria-label={'永久删除：'+a.name} disabled={loading||!!usage[a.id]?.length} onClick={()=>void permanent(a)}>永久删除</button></div></div></article>)}</div>}
-   </>:<><div className="next-delete-photo"><AssetThumb asset={dialog}/><strong>{dialog.name}</strong></div><p className="next-hint">{usage[dialog.id]?.length?'这张照片已用于 '+usage[dialog.id].length+' 个作品。移入回收站后，这些作品仍保留照片。':'只移除素材库中的副本，手机原图保留。'}误删时可以撤销或从回收站恢复。</p><div className="next-dialog-actions"><button className="next-secondary" disabled={loading} onClick={()=>setDialog(null)}>保留照片</button><button className="next-primary" disabled={loading} onClick={()=>void remove(dialog)}>移入回收站</button></div></>}
+    <p className="next-hint">回收站保留拾页中的副本，已使用的页面仍正常显示。先解除作品、随心记和回忆册中的引用，才能永久删除；手机原图不受影响。</p>
+    {!trash.length?<p className="next-empty">回收站是空的。</p>:<div className="next-trash-list">{trash.map(a=><article key={a.id}><AssetThumb asset={a}/><div><strong>{a.name}</strong><p>{usage[a.id]?.length?'仍用于 '+usage[a.id].length+' 个作品或记录':'未被作品使用'}</p>{!!usage[a.id]?.length&&<details><summary>查看对应内容</summary>{usage[a.id].map(s=><p key={s.id}>{s.title}</p>)}</details>}<div className="next-dialog-actions"><button className="next-secondary" aria-label={'恢复照片：'+a.name} disabled={loading} onClick={()=>void restore(a)}>恢复照片</button><button className="next-text-action next-danger" aria-label={'永久删除：'+a.name} disabled={loading||!!usage[a.id]?.length} onClick={()=>void permanent(a)}>永久删除</button></div></div></article>)}</div>}
+   </>:<><div className="next-delete-photo"><AssetThumb asset={dialog}/><strong>{dialog.name}</strong></div><p className="next-hint">{usage[dialog.id]?.length?'这张照片已用于 '+usage[dialog.id].length+' 个作品或记录。移入回收站后，这些作品仍保留照片。':'只移除素材库中的副本，手机原图保留。'}误删时可以撤销或从回收站恢复。</p><div className="next-dialog-actions"><button className="next-secondary" disabled={loading} onClick={()=>setDialog(null)}>保留照片</button><button className="next-primary" disabled={loading} onClick={()=>void remove(dialog)}>移入回收站</button></div></>}
   </Modal>}
  </div>;
 }
