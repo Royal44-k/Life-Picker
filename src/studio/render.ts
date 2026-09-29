@@ -31,10 +31,10 @@ export async function drawScene(canvas:HTMLCanvasElement,scene:Scene,options:Car
   ctx.drawImage(decoded,p.x+(p.w-w)*p.focusX,p.y+(p.h-h)*p.focusY,w,h);ctx.restore();
  }
  for(const line of scene.lines){
-  if(line.kind==='quote'||line.kind==='code'){ctx.fillStyle=t.wash;ctx.fillRect(80,line.y-2,920,line.lineHeight+4);}
+  if(line.kind==='quote'||line.kind==='code'){ctx.fillStyle=t.wash;const frame=scene.textFrame||{x:88,width:904};ctx.fillRect(frame.x-8,line.y-2,frame.width+16,line.lineHeight+4);}
   ctx.font=font(line.size,line.weight,line.kind,options);ctx.fillStyle=line.kind==='heading'||line.emphasis||scene.role==='cover'?accent:t.ink;
   ctx.fillText(line.text,line.x,line.y+(line.lineHeight-line.size)*.16);
-  if(line.marker){ctx.fillStyle=accent;ctx.font=font(28,500,'list',options);ctx.fillText(line.marker,88,line.y+10);}
+  if(line.marker){ctx.fillStyle=accent;ctx.font=font(28,500,'list',options);ctx.fillText(line.marker,line.x-38,line.y+10);}
  }
  ctx.strokeStyle=t.wash;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(88,scene.height-116);ctx.lineTo(992,scene.height-116);ctx.stroke();
  ctx.font=font(24,500,'paragraph',options);ctx.fillStyle=t.muted;ctx.fillText(options.author||'拾页',88,scene.height-80);

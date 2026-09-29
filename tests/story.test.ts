@@ -176,3 +176,12 @@ test('merging and splitting keep directory targets and the chosen photo crop',as
  assert.notEqual(entries[0].targetPageId,entries[1].targetPageId);
  assert.ok(entries.every(e=>story.pages.some(p=>p.id===e.targetPageId)));
 });
+
+test('merging pages from different original revisions never certifies mixed source offsets',async()=>{
+ const {mergePage}=await import('../src/studio/planner.ts');
+ let s=planStory('## 甲\n\n旧甲。\n\n## 乙\n\n旧乙。',DEFAULT_OPTIONS,{target:0,cover:false,ending:'none'},measure);
+ const second=s.pages[1];s=editPage(s,second.id,{locked:true});
+ s=rebuildStory(s,'## 甲\n\n这里是一段更长的新甲内容。\n\n## 乙\n\n当前的乙。',measure);
+ s=editPage(s,second.id,{locked:false});assert.notEqual(s.pages[1].sourceVersion,s.sourceHash);
+ const merged=mergePage(s,s.pages[0].id);assert.notEqual(merged.pages[0].sourceVersion,merged.sourceHash);
+});

@@ -63,7 +63,7 @@ export function rebuildStory(s:Story,source:string,measure:MeasureText=roughMeas
   next.pages=next.pages.map(p=>{
     const old=matchOriginalPage(p,s.pages.filter(old=>!old.locked&&!used.has(old.id)));
     if(!old)return p;used.add(old.id);remapped.set(p.id,old.id);if(old.assetId&&old.source!==p.source)next.warnings.push('已根据对应来源保留照片，请核对图文对应。');
-    return {...p,id:old.id,assetId:old.assetId,fit:old.fit,focusX:old.focusX,focusY:old.focusY,diagram:old.diagram,layout:old.layout};
+    return {...p,id:old.id,assetId:old.assetId,fit:old.fit,focusX:old.focusX,focusY:old.focusY,diagram:old.diagram,layout:old.layout,template:old.template};
   });
   const changedPhotos=s.pages.filter(p=>p.assetId&&!p.locked&&!used.has(p.id));
   if(changedPhotos.length)next.warnings.push(changedPhotos.length+' 个含照片页面的内容结构已变化，照片仍在素材库，请重新选择搭配。');
@@ -95,7 +95,7 @@ export function splitPage(story:Story,id:string,measure:MeasureText=roughMeasure
  let inCode=!!page.codeContinuation;
  const parts=chunks.map((source,i)=>{
   const part=i===0?{...page,source}:newPage(source,'body',page.sourceIds);
-  part.sourceVersion=page.sourceVersion;part.sourceRanges=page.sourceRanges;part.codeContinuation=inCode;
+  part.template=page.template;part.sourceVersion=page.sourceVersion;part.sourceRanges=page.sourceRanges;part.codeContinuation=inCode;
   if([...source.matchAll(/^\s*```/gm)].length%2)inCode=!inCode;
   return part;
  });
@@ -126,7 +126,7 @@ export function mergePage(story:Story,id:string):Story{
  const source=page.source+(next.codeContinuation?'':'\n\n')+next.source;
  if(source.length>20000)throw new Error('合并后超过单页 20,000 字符，原页面已保留。');
  const photo=page.assetId?page:next;
- const merged={...page,source,assetId:photo.assetId,fit:photo.fit,focusX:photo.focusX,focusY:photo.focusY,
+ const merged={...page,source,sourceVersion:page.sourceVersion===next.sourceVersion?page.sourceVersion:undefined,assetId:photo.assetId,fit:photo.fit,focusX:photo.focusX,focusY:photo.focusY,
   sourceIds:[...new Set([...page.sourceIds,...next.sourceIds])],sourceRanges:[...(page.sourceRanges||[]),...(next.sourceRanges||[])]};
  const pages=[...story.pages];pages.splice(pos,2,merged);
  return relinkDirectory(story,[page.id,next.id],[merged],pages);

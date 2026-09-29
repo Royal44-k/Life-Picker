@@ -1,6 +1,7 @@
 import {zipSync,unzipSync,strToU8,strFromU8} from 'fflate';
 import {isOptions,makeId} from '../core/storage.ts';
 import type {Story, MediaAsset} from './model.ts';
+import {templateExists} from './templates.ts';
 const idOK=(v:unknown)=>typeof v==='string'&&/^[\w:-]{1,100}$/.test(v);
 export function validateStory(value:unknown):Story{
  const s=value as Story;
@@ -10,6 +11,7 @@ export function validateStory(value:unknown):Story{
  const ids=new Set<string>();let total=0;
  for(const p of s.pages){
   if(!p||!idOK(p.id)||ids.has(p.id)||!['cover','toc','body','diagram','ending'].includes(p.role)||typeof p.source!=='string'||p.source.length>20000||typeof p.locked!=='boolean'||!['none','pyramid','steps','compare','timeline','checklist'].includes(p.diagram)||!['plain','quote','photo'].includes(p.layout)||!['cover','contain'].includes(p.fit)||![p.focusX,p.focusY].every(v=>Number.isFinite(v)&&v>=0&&v<=1)||p.assetId!==undefined&&!idOK(p.assetId)||!Array.isArray(p.sourceIds)||p.sourceIds.length>200||p.sourceIds.some(v=>typeof v!=='string'||v.length>200))throw new Error('页面数据无效，未导入。');
+  if(p.template!==undefined&&!templateExists(p.template))throw new Error('页面模板无效。');
   if(p.sourceVersion!==undefined&&(typeof p.sourceVersion!=='string'||p.sourceVersion.length>100))throw new Error('页面来源版本无效。');
   if(p.codeContinuation!==undefined&&typeof p.codeContinuation!=='boolean')throw new Error('代码续页标记无效。');
   if(p.sourceRanges!==undefined&&(!Array.isArray(p.sourceRanges)||p.sourceRanges.length>200||p.sourceRanges.some(r=>!r||typeof r.blockId!=='string'||r.blockId.length>100||!Number.isInteger(r.start)||!Number.isInteger(r.end)||r.start<0||r.end<r.start||r.end>20000)))throw new Error('页面来源位置无效。');
