@@ -1,6 +1,6 @@
 # 拾页本机短片运行时
 
-2026-09-29 开发环境安装记录。视频服务仍在开发，本文不代表手机入口已经交付。
+2026-09-29 开发环境安装记录。v1.2 手机短片入口与本机服务已完成集成验证；本文不代表云端渲染已部署。
 
 - 来源：FFmpeg 官方下载页 https://ffmpeg.org/download.html 列出的 Gyan Windows builds：https://www.gyan.dev/ffmpeg/builds/
 - 固定下载：https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-9.0.2-essentials_build.zip
