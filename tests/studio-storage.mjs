@@ -1,3 +1,4 @@
+import {studioUrl} from './helpers/studio-url.mjs';
 import {chromium} from 'playwright';
 import assert from 'node:assert/strict';
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
@@ -7,7 +8,7 @@ const ctx=await browser.newContext({viewport:{width:390,height:844}});
 const page=await ctx.newPage();
 await mkdir('artifacts',{recursive:true});
 try{
- await page.goto(base);await page.getByRole('heading',{name:'把经历，编成作品。'}).waitFor();
+ await page.goto(studioUrl(base));await page.getByRole('heading',{name:'把经历，编成作品。'}).waitFor();
  const result=await page.evaluate(async()=>{
   const db=await import('/src/studio/database.ts');const planner=await import('/src/studio/planner.ts');const layout=await import('/src/core/layout.ts');const backup=await import('/src/studio/backup.ts');const render=await import('/src/studio/render.ts');
   const s=planner.planStory('# 真实测试\n\n保存的是这一句。',layout.DEFAULT_OPTIONS,{target:0,cover:true,ending:'none'});

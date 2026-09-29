@@ -1,7 +1,8 @@
+import {studioUrl} from './helpers/studio-url.mjs';
 import {chromium} from 'playwright';import assert from 'node:assert/strict';
 const browser=await chromium.launch({channel:'msedge',headless:true});
 try{
- const page=await browser.newPage();await page.goto('http://localhost:5173');await page.getByRole('heading',{name:'把经历，编成作品。'}).waitFor();
+ const page=await browser.newPage();await page.goto(studioUrl());await page.getByRole('heading',{name:'把经历，编成作品。'}).waitFor();
  const result=await page.evaluate(async()=>{
   const {planStory}=await import('/src/studio/planner.ts'),{applyTemplate}=await import('/src/studio/templates.ts'),{layoutStory}=await import('/src/studio/scene.ts'),{drawScene}=await import('/src/studio/render.ts'),{createMeasure}=await import('/src/core/renderer.ts'),{DEFAULT_OPTIONS}=await import('/src/core/layout.ts');
   const photo=document.createElement('canvas');photo.width=200;photo.height=200;const cx=photo.getContext('2d');cx.fillStyle='#14755c';cx.fillRect(0,0,200,200);const blob=await new Promise(r=>photo.toBlob(r));

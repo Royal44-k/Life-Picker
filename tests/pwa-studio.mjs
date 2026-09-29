@@ -1,3 +1,4 @@
+import {studioUrl} from './helpers/studio-url.mjs';
 import {chromium} from 'playwright';
 import assert from 'node:assert/strict';
 import {writeFile} from 'node:fs/promises';
@@ -5,7 +6,7 @@ const base=process.env.TEST_URL||'http://localhost:5181';
 const browser=await chromium.launch({channel:'msedge',headless:true});
 try{
  const context=await browser.newContext({viewport:{width:390,height:844}});const page=await context.newPage();
- await page.goto(base);await page.getByRole('heading',{name:'把经历，编成作品。'}).waitFor();
+ await page.goto(studioUrl(base));await page.getByRole('heading',{name:'把经历，编成作品。'}).waitFor();
  const manifest=await(await page.request.get(base+'/manifest.webmanifest')).json();assert.equal(manifest.display,'standalone');
  assert.equal((await page.request.get(base+'/.env')).status(),404);
  assert.equal((await page.request.get(base+'/server/ai.mjs')).status(),404);

@@ -1,3 +1,4 @@
+import {studioUrl} from './helpers/studio-url.mjs';
 import {chromium} from 'playwright';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -5,7 +6,7 @@ import {createHash} from 'node:crypto';
 const browser=await chromium.launch({channel:'msedge',headless:true});
 try{
  const page=await browser.newPage({viewport:{width:390,height:844}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto(process.env.TEST_URL||'http://localhost:5173');await page.getByRole('heading',{name:'把经历，编成作品。'}).waitFor();
+ await page.goto(studioUrl(process.env.TEST_URL));await page.getByRole('heading',{name:'把经历，编成作品。'}).waitFor();
  await page.getByRole('button',{name:'新建作品',exact:true}).click();
  await page.getByLabel('作品原文').fill('# 选择自己要保存的一张\n\n第一段文字。\n\n---\n\n## 第二段\n\n这一段必须出现在对应图片。');
  await page.getByRole('button',{name:'生成分镜',exact:true}).click();

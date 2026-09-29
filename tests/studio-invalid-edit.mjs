@@ -1,13 +1,14 @@
+import {studioUrl} from './helpers/studio-url.mjs';
 import {chromium} from 'playwright';
 import assert from 'node:assert/strict';
 const browser=await chromium.launch({channel:'msedge',headless:true});
 try{
  const page=await browser.newPage({viewport:{width:390,height:844}});
- await page.goto(process.env.TEST_URL||'http://localhost:5173');await page.getByRole('heading',{name:'把经历，编成作品。'}).waitFor();
+ await page.goto(studioUrl(process.env.TEST_URL));await page.getByRole('heading',{name:'把经历，编成作品。'}).waitFor();
  await page.evaluate(async()=>{
   const db=await import('/src/studio/database.ts');const p=await import('/src/studio/planner.ts');const layout=await import('/src/core/layout.ts');
   const s=p.planStory('第一段\n---\n第二段',layout.DEFAULT_OPTIONS,{cover:false,target:0,ending:'none'});
-  s.pages[0].source='x'.repeat(10001);s.pages[1].source='y'.repeat(10001);await db.saveStory(s,0);localStorage.setItem('shiye:studio:active',s.id);
+  s.pages[0].source='x'.repeat(10001);s.pages[1].source='y'.repeat(10001);await db.saveStory(s,0);localStorage.setItem('shiye:studio:active',s.id);const url=new URL(location.href);url.searchParams.set('id',s.id);history.replaceState(null,'',url);
  });
  await page.reload();await page.getByRole('tab',{name:'分镜',exact:true}).click();await page.getByRole('button',{name:'编辑第 1 页'}).click();
  await page.getByRole('button',{name:'合并下一页',exact:true}).click();

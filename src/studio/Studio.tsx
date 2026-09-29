@@ -1,3 +1,4 @@
+import {BottomNav} from '../hub/BottomNav.tsx';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {Layers,Plus,ArrowLeft,ArrowRight,ArrowUp,ArrowDown,LockKeyhole,Unlock,Download,FolderOpen,Sparkles,Scissors,Trash2,RotateCcw,Check,BookOpen,Upload,ChevronRight,X} from 'lucide-react';
 import type {Story,StoryPage,MediaAsset,Diagram,StorySettings} from './model.ts';
@@ -42,7 +43,8 @@ export default function Studio(){
  const [undo,setUndo]=useState<Story[]>([]),[imageError,setImageError]=useState('');
  const revs=useRef(new Map<string,number>()),queue=useRef(Promise.resolve()),blocked=useRef(false),pending=useRef(false),sequence=useRef(0),currentId=useRef(''),imageTicket=useRef(0);
  const restoreInput=useRef<HTMLInputElement>(null),textInput=useRef<HTMLInputElement>(null);
- useEffect(()=>{let active=true;void boot().then(async rows=>{const photos=await listAssets(true);if(!active)return;setStories(rows);rows.forEach(s=>revs.current.set(s.id,s.revision));setAssets(photos);let id='';try{id=localStorage.getItem('shiye:studio:active')||'';}catch{}const initial=rows.find(s=>s.id===id)||rows[0];setStory(initial);currentId.current=initial.id;setSaveStatus('已保存到本机');}).catch(e=>{if(active){setError(e.message);setSaveStatus('存储不可用');}});return()=>{active=false;};},[]);
+ useEffect(()=>{let active=true;void boot().then(async rows=>{const photos=await listAssets(true);if(!active)return;setStories(rows);rows.forEach(s=>revs.current.set(s.id,s.revision));setAssets(photos);let id='';try{id=localStorage.getItem('shiye:studio:active')||'';}catch{}const requested=new URLSearchParams(location.search).get('id');const initial=rows.find(s=>s.id===(requested||id))||rows[0];setStory(initial);currentId.current=initial.id;setSaveStatus('已保存到本机');}).catch(e=>{if(active){setError(e.message);setSaveStatus('存储不可用');}});return()=>{active=false;};},[]);
+ useEffect(()=>{if(!story)return;const url=new URL(location.href);url.searchParams.set('id',story.id);history.replaceState(null,'',url);try{localStorage.setItem('shiye:studio:active',story.id);}catch{}if(location.hash==='#backup')requestAnimationFrame(()=>document.getElementById('backup')?.scrollIntoView());},[story?.id]);
  useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(''),5000);return()=>clearTimeout(t);},[toast]);
  useEffect(()=>{const handler=(e:BeforeUnloadEvent)=>{if(pending.current||blocked.current){e.preventDefault();e.returnValue='';}};addEventListener('beforeunload',handler);return()=>removeEventListener('beforeunload',handler);},[saveStatus]);
  useEffect(()=>()=>{if(image)URL.revokeObjectURL(image.url);},[image]);
@@ -61,6 +63,7 @@ export default function Studio(){
   }).catch(e=>{blocked.current=e.name!=='MissingAssetError';pending.current=true;setSaveStatus('修改尚未保存');setError(e.message||'保存失败，请先备份作品。');});
   return true;
  }
+ async function leave(href:string){if(busy){setError('正在处理当前操作，请完成后再切换入口。');return;}await queue.current;if(pending.current||blocked.current){setError('修改尚未保存，请先重试保存或备份当前作品。');return;}location.href=href;}
  const attempt=(fn:()=>void)=>{try{fn();}catch(e){setError((e as Error).message);}};
  const layout=useMemo(()=>{if(!story)return {scenes:[],error:''};try{return {scenes:layoutStory(story,createMeasure(story.options)),error:''};}catch(e){return {scenes:[],error:(e as Error).message};}},[story]);
  const scenes=layout.scenes,scene=scenes[Math.min(index,Math.max(0,scenes.length-1))];
@@ -106,8 +109,8 @@ export default function Studio(){
 
  function close(){setModal(null);imageTicket.current++;setImage(null);}
  if(!story)return <main className="next-studio loading"><Layers/><h1>拾页</h1><p>{error||'正在打开你的创作空间…'}</p><a href="?classic=1">打开经典工作台</a></main>;
- return <div className="next-studio">
-  <header className="next-header"><a href="#" onClick={e=>e.preventDefault()} className="next-brand"><span><Layers size={23}/></span><strong>拾页</strong><small>创作工作台 <b>1.1.1</b></small></a><div className="next-header-actions"><a href="?classic=1">经典版</a><button onClick={()=>setModal('library')} disabled={!!busy}><FolderOpen size={17}/><span>作品库</span></button></div></header>
+ return <div className="next-studio has-main-nav">
+  <header className="next-header"><a href="#" onClick={e=>e.preventDefault()} className="next-brand"><span><Layers size={23}/></span><strong>拾页</strong><small>创作工作台 <b>1.1.1</b></small></a><div className="next-header-actions"><a href="?classic=1" onClick={e=>{e.preventDefault();void leave('?classic=1');}}>经典版</a><button onClick={()=>setModal('library')} disabled={!!busy}><FolderOpen size={17}/><span>作品库</span></button></div></header>
   <main className="next-main">
    <div className="next-intro"><div><p className="next-eyebrow">留住自己的细节 · 写出自己的表达</p><h1>把经历，编成作品。</h1><p className="next-subtitle">从一段文字、一张照片，开始这一次分享。</p></div><button className="next-new" onClick={create} disabled={!!busy||blocked.current||pending.current}><Plus size={18}/><span>新建作品</span></button></div>
    <div className="next-work-title"><span className="next-document"><BookOpen size={17}/>{story.title}</span><span className={'next-save '+(blocked.current?'bad':'')}><Check size={13}/>{saveStatus}</span>{saveStatus==='修改尚未保存'&&<button className="next-save-retry" onClick={()=>{blocked.current=false;commit(story);}}>重试保存</button>}</div>
@@ -139,7 +142,7 @@ export default function Studio(){
     <aside className="next-desktop-preview"><Preview/></aside>
    </div>
    <div className="next-bottom"><div><strong>{scenes.length} 张图片</strong><span>{scenes.length?'当前第 '+(Math.min(index,scenes.length-1)+1)+' 张，可选页保存':'原文和页面分别保留'}</span></div><button className="next-secondary" disabled={!!busy||!scene||stale} onClick={()=>void previewImage()}>保存单图</button><button className="next-primary" disabled={!!busy||!scenes.length||stale} onClick={()=>void exportZip()}><Download size={16}/>整篇 ZIP</button></div>
-   <div className="next-utilities"><a href="/?view=journal">随心记</a><button onClick={()=>void backup()} disabled={!!busy}>备份作品</button><button onClick={()=>restoreInput.current?.click()} disabled={!!busy||blocked.current}>恢复备份</button><a href="/guide-v1.1.html" target="_blank" rel="noreferrer">使用指南</a><span>v1 已保留 · 作品只存本机</span></div>
+   <div id="backup" className="next-utilities"><a href="/?view=journal" onClick={e=>{e.preventDefault();void leave('/?view=journal');}}>随心记</a><button onClick={()=>void backup()} disabled={!!busy}>备份作品</button><button onClick={()=>restoreInput.current?.click()} disabled={!!busy||blocked.current}>恢复备份</button><a href="/guide-v1.1.html" target="_blank" rel="noreferrer">使用指南</a><span>v1 已保留 · 作品只存本机</span></div>
   </main>
   <input hidden aria-label="选择作品备份" ref={restoreInput} type="file" accept=".zip" onChange={e=>void restore(e.target.files?.[0])}/><input hidden aria-label="选择文字文件" ref={textInput} type="file" multiple accept=".md,.markdown,.txt" onChange={e=>void importText(e.target.files)}/>
   {toast&&<div className="toast" role="status">{toast}</div>}{busy&&<div className="busy-overlay" role="status">{busy}</div>}
@@ -167,6 +170,7 @@ export default function Studio(){
 
   {modal==='storyboard'&&<StoryboardAI story={story} onClose={close} onApply={pages=>attempt(()=>{const next=planStory(story.source,story.options,story.settings,createMeasure(story.options));const cover=story.pages.find(p=>p.role==='cover'&&p.assetId);if(cover&&pages[0]?.role==='cover')pages[0]={...pages[0],assetId:cover.assetId,fit:cover.fit,focusX:cover.focusX,focusY:cover.focusY};next.pages=pages;next.warnings=['AI 已编辑表达，请核对事实；原作品在作品库中保留。'];if(!commit(next))return;setUndo([]);close();setIndex(0);setTab('outline');notify('AI 分镜已另存为新作品');})}/>}
   {modal==='ai'&&<AiPanel source={story.source} onClose={close} notify={notify} onApply={text=>attempt(()=>{const next=planStory(text,story.options,story.settings,createMeasure(story.options));if(!commit(next))return;setUndo([]);close();setTab('outline');notify('已生成新作品，原文作品仍在作品库。');})}/>}
+  <BottomNav active="studio" onNavigate={leave} disabled={!!busy||!!modal}/>
  </div>;
  function Preview(){return <div className="next-preview-body"><div className="next-section-title"><h2>作品预览</h2><span>1080px · {story!.options.ratio==='portrait'?'3:4':story!.options.ratio==='square'?'1:1':'9:16'}</span></div>{scene?<><ScenePreview scene={scene} options={story!.options}/><div className="next-preview-nav"><button aria-label="上一张" disabled={index===0} onClick={()=>setIndex(i=>Math.max(0,i-1))}><ArrowLeft size={18}/></button><span>{scene.index+1} / {scenes.length}</span><button aria-label="下一张" disabled={index>=scenes.length-1} onClick={()=>setIndex(i=>i+1)}><ArrowRight size={18}/></button></div><div className="next-preview-strip">{scenes.map((s,i)=><button className={s.index===scene.index?'selected':''} key={s.id} aria-label={'预览第 '+(i+1)+' 张'} onClick={()=>setIndex(i)}>{i+1}</button>)}</div></>:<div className="next-preview-empty"><Layers size={36}/><h3>{layout.error?'需要调整内容':'给好内容，一个出口'}</h3><p>{layout.error||'写下原文并生成分镜，作品就会出现在这里。'}</p></div>}<p className="next-hint">预览与导出使用同一份页面。{stale?'原文变化尚未编排。':''}</p></div>;}
 }

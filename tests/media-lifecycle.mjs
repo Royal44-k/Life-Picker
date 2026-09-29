@@ -1,7 +1,8 @@
+import {studioUrl} from './helpers/studio-url.mjs';
 import {chromium} from 'playwright';import assert from 'node:assert/strict';
 const browser=await chromium.launch({channel:'msedge',headless:true});
 try{
- const page=await browser.newPage();await page.goto(process.env.TEST_URL||'http://localhost:5173');await page.getByRole('heading',{name:'把经历，编成作品。'}).waitFor();
+ const page=await browser.newPage();await page.goto(studioUrl(process.env.TEST_URL));await page.getByRole('heading',{name:'把经历，编成作品。'}).waitFor();
  const result=await page.evaluate(async()=>{
   const db=await import('/src/studio/database.ts');const p=await import('/src/studio/planner.ts');const options=(await import('/src/core/layout.ts')).DEFAULT_OPTIONS;
   const canvas=document.createElement('canvas');canvas.width=20;canvas.height=20;const blob=await new Promise(r=>canvas.toBlob(r));

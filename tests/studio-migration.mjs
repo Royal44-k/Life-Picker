@@ -1,3 +1,4 @@
+import {studioUrl} from './helpers/studio-url.mjs';
 import {chromium} from 'playwright';
 import assert from 'node:assert/strict';
 const browser=await chromium.launch({channel:'msedge',headless:true});
@@ -10,7 +11,7 @@ try{
   {id:'ordinary',source:'# 一篇普通旧稿\n\n原始记录没有丢失。',options,updatedAt:1}];
   if(!localStorage.getItem('shiye:drafts:v1'))localStorage.setItem('shiye:drafts:v1',JSON.stringify({version:1,drafts}));
  });
- await page.goto(process.env.TEST_URL||'http://localhost:5173');
+ await page.goto(studioUrl(process.env.TEST_URL));
  await page.getByRole('heading',{name:'把经历，编成作品。'}).waitFor({timeout:8000});
  const result=await page.evaluate(async()=>{
   const db=await import('/src/studio/database.ts');

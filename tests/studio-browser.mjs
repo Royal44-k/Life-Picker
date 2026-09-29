@@ -1,3 +1,4 @@
+import {studioUrl} from './helpers/studio-url.mjs';
 import {chromium} from 'playwright';
 import assert from 'node:assert/strict';
 import {mkdir,writeFile,readFile} from 'node:fs/promises';
@@ -8,7 +9,7 @@ const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors
 const base=process.env.TEST_URL||'http://localhost:5173';
 await mkdir('artifacts',{recursive:true});
 try{
- await page.goto(base);await page.getByRole('heading',{name:'把经历，编成作品。'}).waitFor();
+ await page.goto(studioUrl(base));await page.getByRole('heading',{name:'把经历，编成作品。'}).waitFor();
  assert.ok(await page.getByRole('button',{name:'新建作品',exact:true}).isVisible());
  await page.getByRole('button',{name:'新建作品',exact:true}).click();
  await page.getByLabel('作品原文').fill('# 我的真实经历\n\n## 第一次\n\n这是我自己写下的第一段。\n\n---\n\n## 后来\n\n另一段真实记录。');

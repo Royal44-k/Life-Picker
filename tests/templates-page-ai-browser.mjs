@@ -1,10 +1,11 @@
+import {studioUrl} from './helpers/studio-url.mjs';
 import {chromium} from 'playwright';import assert from 'node:assert/strict';
 const browser=await chromium.launch({channel:'msedge',headless:true});
 try{
  const page=await browser.newPage({viewport:{width:390,height:844}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  let paid=0;await page.route('**/api/page-ai',async route=>{paid++;const data=route.request().postDataJSON();assert.ok(!('history' in data));assert.equal(data.context.length,0);await route.fulfill({status:200,json:{text:'## 自己的观察\n\n我走了 3 公里，拍下 2 张喜欢的照片。',revision:data.revision}});});
  await page.route('**/api/status',route=>route.fulfill({json:{deepseek:true}}));
- await page.goto('http://localhost:5173');await page.getByRole('button',{name:'新建作品',exact:true}).click();
+ await page.goto(studioUrl());await page.getByRole('button',{name:'新建作品',exact:true}).click();
  await page.getByLabel('作品原文').fill('## 自己的观察\n\n我走了 3 公里。\n\n拍了 2 张照片。\n\n留下 1 个问题。');await page.getByRole('button',{name:'生成分镜',exact:true}).click();await page.getByText('已保存到本机',{exact:true}).waitFor();
  const original=await page.evaluate(async()=>{const db=await import('/src/studio/database.ts');return (await db.allStories()).find(s=>s.id===localStorage.getItem('shiye:studio:active'));});
  await page.getByRole('tab',{name:'样式',exact:true}).click();await page.getByRole('button',{name:'选择结构模板 · 12 种'}).click();
