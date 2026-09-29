@@ -1,10 +1,11 @@
+import {loadImage} from '../studio/media.ts';
 import {openDB,finish} from '../studio/database.ts';
 import {validateEntry,validateMemory} from './model.ts';
 import type {JournalEntry,MemoryAlbum} from './model.ts';
 type RecordType=JournalEntry|MemoryAlbum;
 async function saveRecord(name:'journals'|'memories',value:RecordType,expected:number):Promise<number>{
  const data=name==='journals'?validateEntry(value):validateMemory(value);
- if(name==='journals'&&!(data as JournalEntry).text.trim()&&!(data as JournalEntry).assetIds.length)throw new Error('先写一点文字或选择照片，再保存记录。');
+ if(name==='journals'&&expected===0&&!(data as JournalEntry).text.trim()&&!(data as JournalEntry).assetIds.length)throw new Error('先写一点文字或选择照片，再保存记录。');
  const ids=[...new Set(name==='journals'?(data as JournalEntry).assetIds:(data as MemoryAlbum).items.flatMap(i=>i.assetIds))];
  const db=await openDB(),tx=db.transaction([name,'assets'],'readwrite'),store=tx.objectStore(name);let conflict=false,missing=false,next=0;
  store.get(data.id).onsuccess=e=>{
@@ -43,7 +44,6 @@ export async function importJournalData(bundle:import('./backup.ts').JournalBund
  if(entries.length>200||memories.length>50||bundle.assets.length>100)throw new Error('备份条目过多，请分批恢复。');
  const photos=new Set(bundle.assets.map(a=>a.id));
  if([...entries.flatMap(e=>e.assetIds),...memories.flatMap(m=>m.items.flatMap(i=>i.assetIds))].some(id=>!photos.has(id)))throw new Error('恢复的记录缺少照片。');
- const {loadImage}=await import('../studio/media.ts');
  for(const asset of bundle.assets){const decoded=await loadImage(asset.blob);if(decoded.naturalWidth!==asset.width||decoded.naturalHeight!==asset.height)throw new Error('照片尺寸不一致，未恢复任何记录。');}
  const db=await openDB(),tx=db.transaction(['journals','memories','assets'],'readwrite');let conflict=false;
  for(const [name,rows] of [['journals',entries],['memories',memories],['assets',bundle.assets]] as const){

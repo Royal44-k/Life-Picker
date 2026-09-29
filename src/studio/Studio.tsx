@@ -139,7 +139,7 @@ export default function Studio(){
     <aside className="next-desktop-preview"><Preview/></aside>
    </div>
    <div className="next-bottom"><div><strong>{scenes.length} 张图片</strong><span>{scenes.length?'当前第 '+(Math.min(index,scenes.length-1)+1)+' 张，可选页保存':'原文和页面分别保留'}</span></div><button className="next-secondary" disabled={!!busy||!scene||stale} onClick={()=>void previewImage()}>保存单图</button><button className="next-primary" disabled={!!busy||!scenes.length||stale} onClick={()=>void exportZip()}><Download size={16}/>整篇 ZIP</button></div>
-   <div className="next-utilities"><button onClick={()=>void backup()} disabled={!!busy}>备份作品</button><button onClick={()=>restoreInput.current?.click()} disabled={!!busy||blocked.current}>恢复备份</button><a href="/guide-v1.1.html" target="_blank" rel="noreferrer">使用指南</a><span>v1 已保留 · 作品只存本机</span></div>
+   <div className="next-utilities"><a href="/?view=journal">随心记</a><button onClick={()=>void backup()} disabled={!!busy}>备份作品</button><button onClick={()=>restoreInput.current?.click()} disabled={!!busy||blocked.current}>恢复备份</button><a href="/guide-v1.1.html" target="_blank" rel="noreferrer">使用指南</a><span>v1 已保留 · 作品只存本机</span></div>
   </main>
   <input hidden aria-label="选择作品备份" ref={restoreInput} type="file" accept=".zip" onChange={e=>void restore(e.target.files?.[0])}/><input hidden aria-label="选择文字文件" ref={textInput} type="file" multiple accept=".md,.markdown,.txt" onChange={e=>void importText(e.target.files)}/>
   {toast&&<div className="toast" role="status">{toast}</div>}{busy&&<div className="busy-overlay" role="status">{busy}</div>}
