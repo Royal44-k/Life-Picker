@@ -1,0 +1,18 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {mkdtemp,mkdir,rm,writeFile,readdir} from 'node:fs/promises';import {resolve,sep} from 'node:path';
+import {createVideoService} from '../server/video-jobs.mjs';import {frame} from './helpers/video-png.mjs';
+const root=resolve('.local/video-tests');await mkdir(root,{recursive:true});
+async function eventually(check){for(let i=0;i<100;i++){if(await check())return;await new Promise(r=>setTimeout(r,10));}throw new Error('Condition did not become true');}
+test('video jobs run one at a time, deduplicate retries, isolate owners, cancel and remove temporary frames',async()=>{
+ const dir=await mkdtemp(resolve(root,'queue-'));let active=0,peak=0,release;const gate=new Promise(r=>release=r);const seen=[];
+ const render=async(source,jobdir,{signal,onProgress})=>{active++;peak=Math.max(peak,active);seen.push(source.frames[0].bytes);try{await Promise.race([gate,new Promise((_,reject)=>signal.addEventListener('abort',()=>reject(new DOMException('Cancelled','AbortError')),{once:true}))]);if(signal.aborted)throw new DOMException('Cancelled','AbortError');onProgress(60);const path=resolve(jobdir,'memory.mp4');await writeFile(path,'real placeholder output');await writeFile(resolve(jobdir,'frame-00.png'),'selected input');return {path,width:720,height:1280,duration:15,bytes:23};}finally{active--;}};
+ const svc=await createVideoService({root:dir,render,ttlMs:500,queueLimit:3});try{
+ const input={duration:15,frames:[frame()]},owner='a'.repeat(32),other='b'.repeat(32);const a=await svc.submit(owner,'first-request',input);await eventually(()=>svc.get(owner,a.id).status==='rendering');assert.throws(()=>svc.get(other,a.id),/找不到/);
+ const same=await svc.submit(owner,'first-request',input);assert.equal(same.id,a.id);const b=await svc.submit(other,'second-request',input);assert.equal(b.status,'queued');await svc.cancel(other,b.id);assert.equal(svc.get(other,b.id).status,'cancelled');await svc.cancel(owner,a.id);await eventually(()=>active===0);assert.equal(svc.get(owner,a.id).status,'cancelled');
+ release();const c=await svc.submit(owner,'third-request',input);await eventually(()=>svc.get(owner,c.id).status==='done');assert.equal(peak,1);const file=await svc.file(owner,c.id);assert.ok(file.path.endsWith('memory.mp4'));const dirs=await readdir(dir);const files=await readdir(resolve(dir,dirs.find(d=>d.includes(c.id))));assert.deepEqual(files,['memory.mp4']);
+ await new Promise(r=>setTimeout(r,600));await svc.cleanup();assert.throws(()=>svc.get(owner,c.id),/找不到/);assert.deepEqual(await readdir(dir),[]);
+ }finally{await svc.close();if(!resolve(dir).startsWith(root+sep))throw new Error('Unsafe cleanup');await rm(dir,{recursive:true,force:true});}
+});
+test('simultaneous retries create exactly one job and changed request content is refused',async()=>{
+ const dir=await mkdtemp(resolve(root,'retry-'));let runs=0;const svc=await createVideoService({root:dir,render:async(_s,_d,{signal})=>{runs++;if(signal.aborted)throw new DOMException('Cancelled','AbortError');await new Promise((_,reject)=>signal.addEventListener('abort',()=>reject(new DOMException('Cancelled','AbortError')),{once:true}));}});
+ try{const owner='c'.repeat(32),input={duration:15,frames:[frame()]};const [a,b]=await Promise.all([svc.submit(owner,'retry-request',input),svc.submit(owner,'retry-request',input)]);assert.equal(a.id,b.id);await assert.rejects(svc.submit(owner,'retry-request',{duration:20,frames:[frame()]}),/内容已改变/);assert.ok(runs<=1);}finally{await svc.close();if(!resolve(dir).startsWith(root+sep))throw new Error('Unsafe cleanup');await rm(dir,{recursive:true,force:true});}
+});

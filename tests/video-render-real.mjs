@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';import {mkdtemp,mkdir,rm,copyFile,stat} from 'node:fs/promises';import {resolve,sep} from 'node:path';import {execFile} from 'node:child_process';import {promisify} from 'node:util';
+import {renderMemoryVideo,videoTools,validateVideoInput} from '../server/video-render.mjs';import {frame} from './helpers/video-png.mjs';
+const exec=promisify(execFile),root=resolve('.local/video-tests');await mkdir(root,{recursive:true});const dir=await mkdtemp(resolve(root,'render-'));
+try{
+ const tools=videoTools();const source=validateVideoInput({duration:15,frames:[frame([225,55,40],{x:90,y:300,w:600,h:400}),frame([35,65,225])]});const updates=[];const result=await renderMemoryVideo(source,dir,{onProgress:n=>updates.push(n)});
+ assert.equal(result.width,720);assert.equal(result.height,1280);assert.ok(Math.abs(result.duration-15)<.12);assert.ok((await stat(result.path)).size>1000);assert.ok(updates.some(n=>n>0));
+ async function pixel(second){const r=await exec(tools.ffmpeg,['-hide_banner','-loglevel','error','-ss',String(second),'-i',result.path,'-vf','scale=1:1','-frames:v','1','-f','rawvideo','-pix_fmt','rgb24','pipe:1'],{encoding:'buffer',windowsHide:true});return [...r.stdout];}
+ const early=await pixel(2),late=await pixel(12);assert.ok(early[0]>early[2]+60);assert.ok(late[2]>late[0]+60);await copyFile(result.path,'artifacts/memory-render-smoke.mp4');
+ const cancelled=await mkdtemp(resolve(root,'cancel-'));try{const controller=new AbortController();controller.abort();await assert.rejects(renderMemoryVideo(source,cancelled,{signal:controller.signal}),e=>e.name==='AbortError');}finally{if(!resolve(cancelled).startsWith(root+sep))throw new Error('Unsafe cleanup');await rm(cancelled,{recursive:true,force:true});}
+ console.log(JSON.stringify({realMP4:true,width:result.width,height:result.height,duration:result.duration,earlyRGB:early,lateRGB:late,cancellation:true}));
+}finally{if(!resolve(dir).startsWith(root+sep))throw new Error('Unsafe cleanup');await rm(dir,{recursive:true,force:true});}
