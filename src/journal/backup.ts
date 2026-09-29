@@ -1,4 +1,5 @@
-import {zipSync,unzipSync,strToU8,strFromU8} from 'fflate';
+import {readCheckedZip} from '../core/checked-zip.ts';
+import {zipSync,strToU8,strFromU8} from 'fflate';
 import type {MediaAsset} from '../studio/model.ts';
 import {makeId} from '../core/storage.ts';
 import {validateEntry,validateMemory} from './model.ts';
@@ -21,7 +22,7 @@ export async function makeJournalBundle(entries:JournalEntry[],memories:MemoryAl
 }
 export function readJournalBundle(bytes:Uint8Array):JournalBundle{
  if(bytes.length>60_000_000)throw new Error('备份超过 60 MB，请选择分批导出的文件。');let files:Record<string,Uint8Array>;
- try{let total=0;files=unzipSync(bytes,{filter:f=>{total+=f.originalSize;if(total>60_000_000||f.originalSize>8_000_000)throw new Error('too large');return true;}});}catch{throw new Error('无法读取随心记备份，文件可能损坏或过大。');}
+ files=readCheckedZip(bytes,{maxBytes:60_000_000,maxEntry:8_000_000,maxFiles:101});
  if(!files['manifest.json'])throw new Error('缺少随心记备份清单。');let data;try{data=JSON.parse(strFromU8(files['manifest.json']));}catch{throw new Error('备份清单损坏。');}
  if(data.format!=='shiye-journal'||data.version!==1||!Array.isArray(data.assets)||data.assets.length>100)throw new Error('不是受支持的随心记备份。');
  const clean=records(data.entries,data.memories),seen=new Set<string>();const assets:MediaAsset[]=[];
@@ -35,5 +36,5 @@ export function restoreJournalIdentity(bundle:JournalBundle):JournalBundle{
  const clean=records(bundle.entries,bundle.memories),photos=new Map(bundle.assets.map(a=>[a.id,makeId()])),entries=new Map(clean.entries.map(e=>[e.id,makeId()]));
  function ref(id:string){if(!entries.has(id))entries.set(id,makeId());return entries.get(id)!;}
  function mapPhotos(ids:string[]){return ids.map(id=>{const next=photos.get(id);if(!next)throw new Error('恢复时缺少照片映射。');return next;});}
- return {entries:clean.entries.map(e=>({...e,id:ref(e.id),revision:0,followUpTo:e.followUpTo?ref(e.followUpTo):undefined,assetIds:mapPhotos(e.assetIds)})),memories:clean.memories.map(m=>({...m,id:makeId(),revision:0,items:m.items.map(i=>({...i,entryId:ref(i.entryId),assetIds:mapPhotos(i.assetIds)}))})),assets:bundle.assets.map(a=>({...a,id:photos.get(a.id)!,trashedAt:undefined}))};
+ return {entries:clean.entries.map(e=>({...e,id:ref(e.id),revision:Math.max(1,e.revision),followUpTo:e.followUpTo?ref(e.followUpTo):undefined,assetIds:mapPhotos(e.assetIds)})),memories:clean.memories.map(m=>({...m,id:makeId(),revision:Math.max(1,m.revision),items:m.items.map(i=>({...i,entryRevision:clean.entries.some(e=>e.id===i.entryId&&e.revision===0&&i.entryRevision===0)?1:i.entryRevision,entryId:ref(i.entryId),assetIds:mapPhotos(i.assetIds)}))})),assets:bundle.assets.map(a=>({...a,id:photos.get(a.id)!,trashedAt:undefined}))};
 }

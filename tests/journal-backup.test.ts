@@ -9,3 +9,7 @@ test('journal backups retain photos, private metadata, followups and frozen memo
  const files=unzipSync(new Uint8Array(await zip.arrayBuffer()));delete files['media/photo'];assert.throws(()=>readJournalBundle(zipSync(files)),/照片/);
  files['manifest.json']=strToU8('{"format":"other"}');assert.throws(()=>readJournalBundle(zipSync(files)),/备份/);
 });
+
+test('journal backup rejects bit-corrupted valid JSON instead of silently changing private text',async()=>{
+ const entry={...newEntry('2026-09-29'),text:'CORRUPTION_A'};const blob=await makeJournalBundle([entry],[],async()=>undefined),raw=new Uint8Array(await blob.arrayBuffer());const i=Buffer.from(raw).indexOf('CORRUPTION_A');assert.ok(i>=0);raw[i+'CORRUPTION_'.length]='B'.charCodeAt(0);assert.throws(()=>readJournalBundle(raw),/损坏|校验/);
+});

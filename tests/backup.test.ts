@@ -28,3 +28,7 @@ test('restore identities remap directory links and keep source references',async
  assert.deepEqual(next.pages.find(p=>p.role==='body')!.sourceRanges,story.pages.find(p=>p.role==='body')!.sourceRanges);
  assert.throws(()=>validateStory({...story,pages:story.pages.map(p=>p.role==='toc'?{...p,tocEntries:[{label:'无效',targetPageId:'bad space'}]}:p)}));
 });
+
+test('story backup rejects bit-corrupted valid JSON instead of silently changing source text',async()=>{
+ const story=planStory('CORRUPTION_A',DEFAULT_OPTIONS,{target:0,cover:false,ending:'none'}),blob=await makeBundle(story,async()=>undefined),raw=new Uint8Array(await blob.arrayBuffer());const i=Buffer.from(raw).indexOf('CORRUPTION_A');assert.ok(i>=0);raw[i+'CORRUPTION_'.length]='B'.charCodeAt(0);assert.throws(()=>readBundle(raw),/损坏|校验/);
+});

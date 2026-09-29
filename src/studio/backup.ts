@@ -1,4 +1,5 @@
-import {zipSync,unzipSync,strToU8,strFromU8} from 'fflate';
+import {readCheckedZip} from '../core/checked-zip.ts';
+import {zipSync,strToU8,strFromU8} from 'fflate';
 import {isOptions,makeId} from '../core/storage.ts';
 import type {Story, MediaAsset} from './model.ts';
 import {templateExists} from './templates.ts';
@@ -36,7 +37,7 @@ export async function makeBundle(s:Story,get:(id:string)=>Promise<MediaAsset|und
 export function readBundle(bytes:Uint8Array):{story:Story;assets:MediaAsset[]}{
  if(bytes.length>55_000_000)throw new Error('备份超过 55 MB。');
  let files:Record<string,Uint8Array>;
- try{let total=0;files=unzipSync(bytes,{filter:f=>{total+=f.originalSize;if(total>60_000_000||f.originalSize>20_000_000)throw new Error('too large');return true;}});}catch{throw new Error('无法读取备份，请选择拾页导出的作品 ZIP。');}
+ files=readCheckedZip(bytes,{maxBytes:60_000_000,maxEntry:20_000_000,maxFiles:61});
  if(!files['manifest.json']||files['manifest.json'].length>2_000_000)throw new Error('缺少作品清单。');
  let data;try{data=JSON.parse(strFromU8(files['manifest.json']));}catch{throw new Error('作品清单损坏。');}
  if(data.format!=='shiye-story'||data.version!==1||!Array.isArray(data.assets)||data.assets.length>60)throw new Error('不是受支持的拾页备份。');
