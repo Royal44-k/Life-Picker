@@ -1,4 +1,5 @@
 import {inflateSync} from 'node:zlib';
+import {makeGentleAudio} from './video-audio.mjs';
 const signature=Buffer.from([137,80,78,71,13,10,26,10]);
 function crc32(data){let n=0xffffffff;for(const b of data){n^=b;for(let k=0;k<8;k++)n=(n>>>1)^((n&1)?0xedb88320:0);}return (n^0xffffffff)>>>0;}
 function inspectPng(bytes){
@@ -23,6 +24,7 @@ export function validateVideoInput(input){
  if(!input||![15,20,30].includes(input.duration))throw new Error('短片时长可选择 15、20 或 30 秒。');
  if(!Array.isArray(input.frames)||input.frames.length<1||input.frames.length>12)throw new Error('短片需要 1～12 页；较长的相册请先另存精简册。');
  if(input.duration/input.frames.length<2)throw new Error('当前页数需要更长时长，每页至少停留 2 秒。');
+ const music=input.music??'none';if(!['none','gentle'].includes(music))throw new Error('请选择无音乐或拾页轻音。');
  let total=0;const frames=input.frames.map(frame=>{
   if(!frame||typeof frame.data!=='string'||frame.data.length>8_000_030||!/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(frame.data))throw new Error('请使用本册生成的 PNG 画面。');
   const base64=frame.data.slice(22),bytes=Buffer.from(base64,'base64');if(bytes.toString('base64')!==base64)throw new Error('PNG 编码无效。');total+=bytes.length;if(total>48_000_000)throw new Error('画面合计超过 48 MB，请减少本册照片或页数。');
@@ -31,7 +33,7 @@ export function validateVideoInput(input){
   return {bytes,width,height,...(photo?{photo}:{})};
  });
  if(frames.some(f=>f.width!==frames[0].width||f.height!==frames[0].height))throw new Error('同一短片的画面尺寸需要一致。');
- return {duration:input.duration,frames};
+ return {duration:input.duration,frames,music};
 }
 
 import {spawn} from 'node:child_process';
@@ -71,10 +73,12 @@ export async function renderMemoryVideo(source,directory,{signal,onProgress=()=>
   }else filters.push(base+`[v${i}]`);
  }
  let last='v0';for(let i=1;i<n;i++){const out='mix'+i;filters.push(`[${last}][v${i}]xfade=transition=fade:duration=${transition}:offset=${(i*(clip-transition)).toFixed(6)}[${out}]`);last=out;}
- const output=resolve(dir,'memory.mp4');args.push('-filter_complex',filters.join(';'),'-map',`[${last}]`,'-an','-t',String(source.duration),'-r','24','-c:v','libx264','-preset','veryfast','-crf','21','-pix_fmt','yuv420p','-threads','2','-movflags','+faststart','-map_metadata','-1','-fs','40000000','-progress','pipe:1',output);
+ if(source.music==='gentle'){await writeFile(resolve(dir,'music.wav'),makeGentleAudio(source.duration));args.push('-i','music.wav');}
+ const output=resolve(dir,'memory.mp4');args.push('-filter_complex',filters.join(';'),'-map',`[${last}]`,...(source.music==='gentle'?['-map',String(n)+':a','-c:a','aac','-b:a','96k']:['-an']),'-t',String(source.duration),'-r','24','-c:v','libx264','-preset','veryfast','-crf','21','-pix_fmt','yuv420p','-threads','2','-movflags','+faststart','-map_metadata','-1','-fs','40000000','-progress','pipe:1',output);
  await run(tools.ffmpeg,args,{cwd:dir,signal,onData:text=>{progress+=text;const lines=progress.split('\n');progress=lines.pop()||'';for(const line of lines){const m=/^out_time_us=(\d+)/.exec(line);if(m)onProgress(Math.min(99,Math.round(Number(m[1])/source.duration/10000)));}}});
- const metadata=JSON.parse(await run(tools.ffprobe,['-v','error','-show_entries','stream=codec_type,width,height:format=duration','-of','json',output],{signal,timeout:10000}));
+ const metadata=JSON.parse(await run(tools.ffprobe,['-v','error','-show_entries','stream=codec_type,codec_name,width,height:format=duration','-of','json',output],{signal,timeout:10000}));
  const video=metadata.streams?.find(s=>s.codec_type==='video'),duration=Number(metadata.format?.duration);const size=(await stat(output)).size;
+ const audio=metadata.streams?.filter(s=>s.codec_type==='audio')||[];if(source.music==='gentle'?(audio.length!==1||audio[0].codec_name!=='aac'):audio.length!==0)throw new Error('配乐没有按所选方式生成，请重试。');
  if(!video||video.width!==720||video.height!==1280||!Number.isFinite(duration)||Math.abs(duration-source.duration)>.12||size<1000||size>=40000000)throw new Error('短片未完整生成，请减少页数后重试。');
- onProgress(100);return {path:output,width:video.width,height:video.height,duration,bytes:size};
+ onProgress(100);return {path:output,width:video.width,height:video.height,duration,bytes:size,music:source.music||'none'};
 }

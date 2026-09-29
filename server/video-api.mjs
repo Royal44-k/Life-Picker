@@ -14,14 +14,15 @@ export function createVideoHandler(service,pairCode,{readiness=checkVideoTools}=
   if(!/^\d{8}$/.test(code)||code.length!==pairCode.length||!timingSafeEqual(Buffer.from(code),Buffer.from(pairCode))){badCodes.push(Date.now());send(res,401,{error:'连接码不正确，请查看电脑启动窗口中的 8 位连接码。'});return;}
   if(!/^[a-f0-9]{32}$/.test(owner)){send(res,400,{error:'短片会话无效，请刷新页面。'});return;}
   if(path==='/api/video/jobs'&&req.method==='POST'){
-   if(uploads){send(res,429,{error:'正在接收另一份短片画面，请稍后重试。'});return;}uploads++;
+   if(uploads){send(res,429,{error:'正在接收另一份短片画面，请稍后重试。'});return;}uploads++;let submitted;const onClose=()=>{if(!res.writableFinished&&submitted)void service.cancel(owner,submitted.id).catch(()=>{});};res.on('close',onClose);
    try{const engine=await ready();if(!engine.ready){send(res,503,engine);return;}const chunks=[];let bytes=0;
     for await(const chunk of req){bytes+=chunk.length;if(bytes>65_000_000){send(res,413,{error:'画面过大，请减少页数或照片后重试。'});return;}chunks.push(chunk);}
     let input;try{input=JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{send(res,400,{error:'短片请求格式不正确。'});return;}
-    const job=await service.submit(owner,input.requestId,input);send(res,202,job);
+    const job=await service.submit(owner,input.requestId,input);submitted=job;if(res.destroyed){await service.cancel(owner,job.id);return;}send(res,202,job);
    }catch(e){send(res,/队列已满|本小时/.test(e.message)?429:400,{error:e.message||'短片提交失败，请重试。'});}finally{uploads--;}
    return;
   }
+  const request=/^\/api\/video\/requests\/([-\w]{8,80})$/.exec(path||'');if(request&&req.method==='GET'){try{send(res,200,service.find(owner,request[1]));}catch(e){send(res,404,{error:e.message});}return;}
   const match=/^\/api\/video\/jobs\/([a-f0-9-]{36})(\/file)?$/.exec(path||'');
   if(!match){send(res,404,{error:'未找到短片接口。'});return;}
   try{

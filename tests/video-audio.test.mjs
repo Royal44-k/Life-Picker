@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {makeGentleAudio} from '../server/video-audio.mjs';import {validateVideoInput} from '../server/video-render.mjs';import {frame} from './helpers/video-png.mjs';
+test('optional soundtrack is a bounded PCM WAV with audible notes, headroom and a quiet ending',()=>{
+ const wav=makeGentleAudio(15);assert.equal(wav.toString('ascii',0,4),'RIFF');assert.equal(wav.toString('ascii',8,12),'WAVE');assert.equal(wav.readUInt32LE(24),22050);assert.equal(wav.length,44+15*22050*2);let peak=0;for(let i=44;i<wav.length;i+=2)peak=Math.max(peak,Math.abs(wav.readInt16LE(i)));assert.ok(peak>2000&&peak<18000);for(let i=wav.length-20;i<wav.length;i+=2)assert.ok(Math.abs(wav.readInt16LE(i))<10);assert.throws(()=>makeGentleAudio(200));
+});
+test('music is opt-in and only the built-in synthetic track is accepted',()=>{assert.equal(validateVideoInput({duration:15,frames:[frame()]}).music,'none');assert.equal(validateVideoInput({duration:15,music:'gentle',frames:[frame()]}).music,'gentle');assert.throws(()=>validateVideoInput({duration:15,music:'https://music.example/file',frames:[frame()]}));});
