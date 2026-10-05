@@ -9,7 +9,7 @@ export function createSourceHandler(store,pairCode,{unavailable='来源库暂时
   try{if(!assets||row.asset?.type!=='image/png'||!row.asset.sha256)throw new Error();const bytes=await assets.read(row.asset.sha256);if(bytes.length!==row.asset.bytes)throw new Error();return bytes;}
   catch{throw Object.assign(new Error('素材文件尚未就绪或校验发生变化，请先检查公开素材更新，再重新审核。'),{status:409});}
  };
- const sendImage=(res,bytes)=>{if(res.destroyed)return;res.writeHead(200,{'Content-Type':'image/png','Content-Length':bytes.length,'X-Content-Type-Options':'nosniff','Cache-Control':'no-store'});res.end(bytes);};
+ const sendImage=(res,bytes,row)=>{if(res.destroyed)return;res.writeHead(200,{'Content-Type':'image/png','Content-Length':bytes.length,...(row?{'X-Shiye-Source-Revision':String(row.revision),'X-Shiye-Asset-SHA256':row.asset.sha256}:{}),'X-Content-Type-Options':'nosniff','Cache-Control':'no-store'});res.end(bytes);};
  return async(req,res)=>{
   const path=(req.url||'').split('?')[0],method=req.method;
   if(req.headers.origin&&![`http://${req.headers.host}`,`https://${req.headers.host}`].includes(req.headers.origin)){send(res,403,{error:'请从拾页页面操作来源库。'});return;}
@@ -22,7 +22,7 @@ export function createSourceHandler(store,pairCode,{unavailable='来源库暂时
     if(!row)throw Object.assign(new Error('未找到已通过审核的素材。'),{status:404});
     const bytes=await assetBytes(row),current=(await store.published()).find(r=>r.id===row.id&&r.revision===row.revision);
     if(!current)throw Object.assign(new Error('来源状态已变化，请刷新素材列表。'),{status:404});
-    sendImage(res,bytes);
+    sendImage(res,bytes,row);
    }catch(error){send(res,error.status||503,{error:error.status?error.message:'素材暂时不可用，请稍后重试。'});}
    return;
   }

@@ -1,3 +1,5 @@
+import {validateInspirationOrigin} from '../sources/inspiration-model.ts';
+import {validateSourceCredit} from '../sources/credit.ts';
 import {readCheckedZip} from '../core/checked-zip.ts';
 import {zipSync,strToU8,strFromU8} from 'fflate';
 import {isOptions,makeId} from '../core/storage.ts';
@@ -20,14 +22,14 @@ export function validateStory(value:unknown):Story{
   ids.add(p.id);total+=p.source.length;
  }
  if(total>60000)throw new Error('作品内容过多，请分开备份。');
- return structuredClone(s);
+ return {...structuredClone(s),...(s.inspiration!==undefined?{inspiration:validateInspirationOrigin(s.inspiration)}:{})};
 }
 export async function makeBundle(s:Story,get:(id:string)=>Promise<MediaAsset|undefined>):Promise<Blob>{
  validateStory(s);
  const files:Record<string,Uint8Array>={};const assets:Omit<MediaAsset,'blob'>[]=[];let bytes=0;
  for(const id of new Set(s.pages.flatMap(p=>p.assetId?[p.assetId]:[]))){
   const a=await get(id);if(!a)throw new Error('作品照片缺失，请重新选择后再备份。');
-  const {blob,...meta}=a;delete meta.trashedAt;assets.push(meta);const data=new Uint8Array(await blob.arrayBuffer());bytes+=data.length;
+  if(a.sourceCredit!==undefined)validateSourceCredit(a.sourceCredit);const {blob,...meta}=a;delete meta.trashedAt;assets.push(meta);const data=new Uint8Array(await blob.arrayBuffer());bytes+=data.length;
   if(bytes>50_000_000)throw new Error('照片超过 50 MB，请分成较小的作品备份。');
   files['media/'+id]=data;
  }
@@ -43,6 +45,7 @@ export function readBundle(bytes:Uint8Array):{story:Story;assets:MediaAsset[]}{
  if(data.format!=='shiye-story'||data.version!==1||!Array.isArray(data.assets)||data.assets.length>60)throw new Error('不是受支持的拾页备份。');
  const story=validateStory(data.story);const assets:MediaAsset[]=[];const seen=new Set();
  for(const a of data.assets){
+  if(a?.sourceCredit!==undefined)a.sourceCredit=validateSourceCredit(a.sourceCredit);
   if(!a||!idOK(a.id)||seen.has(a.id)||typeof a.name!=='string'||a.name.length>200||!['image/jpeg','image/png','image/webp'].includes(a.type)||!Number.isInteger(a.width)||!Number.isInteger(a.height)||a.width<1||a.height<1||a.width>4096||a.height>4096||!Number.isFinite(a.createdAt))throw new Error('照片信息无效。');
   const bytes=files['media/'+a.id];if(!bytes||bytes.length!==a.bytes||bytes.length>8_000_000)throw new Error('照片缺失或过大。');
   seen.add(a.id);assets.push({...a,trashedAt:undefined,blob:new Blob([bytes as Uint8Array<ArrayBuffer>],{type:a.type})});
