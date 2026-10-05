@@ -3,11 +3,11 @@ import { Sparkles, Copy, ArrowUpRight, LoaderCircle, Check, Undo2 } from 'lucide
 import { Modal } from './Modal.tsx';
 
 type Status={deepseek:boolean;ollama:boolean;deepseekModel:string;ollamaModel:string};
-export function AiPanel({source,onApply,onClose,notify}:{source:string;onApply:(text:string)=>void;onClose:()=>void;notify:(text:string)=>void}) {
+export function AiPanel({source,onApply,onClose,notify,initialTone="真诚自然",initialTopic=""}:{initialTone?:string;initialTopic?:string;source:string;onApply:(text:string)=>void;onClose:()=>void;notify:(text:string)=>void}) {
   const [mode,setMode]=useState<'generate'|'polish'>(source.trim()?'polish':'generate');
   const [provider,setProvider]=useState('manual');
-  const [topic,setTopic]=useState('');
-  const [tone,setTone]=useState('真诚自然');
+  const [topic,setTopic]=useState(initialTopic);
+  const [tone,setTone]=useState(initialTone);
   const [length,setLength]=useState('500');
   const [symbols,setSymbols]=useState('适量 emoji 和颜文字');
   const [code,setCode]=useState(()=>{try{return sessionStorage.getItem('shiye:ai-code')||'';}catch{return '';}});
@@ -34,8 +34,8 @@ export function AiPanel({source,onApply,onClose,notify}:{source:string;onApply:(
   return <Modal title="AI 文案助手" onClose={()=>{if(!result.trim()||window.confirm('结果尚未应用到排版，确定关闭并放弃这段结果吗？'))onClose();}} wide>
     <p className="modal-intro">想法到文案，再到一组好看的图。结果由你确认后应用。</p>
     <div className="segmented"><button className={mode==='polish'?'selected':''} onClick={()=>setMode('polish')}>润色已有文案</button><button className={mode==='generate'?'selected':''} onClick={()=>setMode('generate')}>从主题生成</button></div>
-    <label className="field-label">{mode==='generate'?'这次想写什么？':'补充要求（可选）'}<textarea rows={3} value={topic} maxLength={2000} onChange={e=>setTopic(e.target.value)} placeholder={mode==='generate'?'例如：给刚入职的女生写一篇通勤包整理指南，实用、轻松，有颜文字。':'例如：开头更有吸引力，保留我的表达习惯。'}/></label>
-    <div className="form-grid"><label className="field-label">文案语气<select value={tone} onChange={e=>setTone(e.target.value)}>{['真诚自然','专业清晰','活泼俏皮','温柔治愈','简洁有力'].map(x=><option key={x}>{x}</option>)}</select></label><label className="field-label">目标长度<select value={length} onChange={e=>setLength(e.target.value)}><option value="300">约 300 字</option><option value="500">约 500 字</option><option value="800">约 800 字</option></select></label></div>
+    <label className="field-label">{mode==='generate'?'这次想写什么？':'补充要求（可选）'}<textarea aria-label={mode==='generate'?'这次想写什么？':'补充要求（可选）'} rows={3} value={topic} maxLength={2000} onChange={e=>setTopic(e.target.value)} placeholder={mode==='generate'?'例如：给刚入职的女生写一篇通勤包整理指南，实用、轻松，有颜文字。':'例如：开头更有吸引力，保留我的表达习惯。'}/></label>
+    <div className="form-grid"><label className="field-label">文案语气<select aria-label="文案语气" value={tone} onChange={e=>setTone(e.target.value)}>{['真诚自然','专业清晰','活泼俏皮','温柔治愈','简洁有力'].map(x=><option key={x}>{x}</option>)}</select></label><label className="field-label">目标长度<select value={length} onChange={e=>setLength(e.target.value)}><option value="300">约 300 字</option><option value="500">约 500 字</option><option value="800">约 800 字</option></select></label></div>
     <label className="field-label">符号与颜文字<select value={symbols} onChange={e=>setSymbols(e.target.value)}>{['不使用装饰符号','少量 emoji','适量 emoji 和颜文字','丰富符号与颜文字，如 ✦ (๑•̀ㅂ•́)و✧'].map(x=><option key={x}>{x}</option>)}</select></label>
     <label className="field-label">使用方式<select value={provider} onChange={e=>setProvider(e.target.value)}><option value="manual">免费手动 · 复制提示词到聊天工具</option><option value="deepseek">DeepSeek API · 按量收费</option><option value="ollama">Ollama 本地模型 · 无 API 费用</option></select></label>
     {provider==='manual'?<div className="ai-note"><p>复制提示词到你常用的免费聊天工具，生成后粘贴到下方。免费额度以服务商为准。</p><button className="secondary" onClick={copyPrompt}><Copy size={16}/>复制完整提示词</button> <a href="https://chat.deepseek.com/" target="_blank" rel="noreferrer">打开 DeepSeek <ArrowUpRight size={13}/></a></div>:<>

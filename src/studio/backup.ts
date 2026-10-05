@@ -1,3 +1,4 @@
+import {validateSeriesSnapshot,validatePublication} from '../series/model.ts';
 import {validateInspirationOrigin} from '../sources/inspiration-model.ts';
 import {validateSourceCredit} from '../sources/credit.ts';
 import {readCheckedZip} from '../core/checked-zip.ts';
@@ -22,10 +23,10 @@ export function validateStory(value:unknown):Story{
   ids.add(p.id);total+=p.source.length;
  }
  if(total>60000)throw new Error('作品内容过多，请分开备份。');
- return {...structuredClone(s),...(s.inspiration!==undefined?{inspiration:validateInspirationOrigin(s.inspiration)}:{})};
+ return {...structuredClone(s),...(s.series!==undefined?{series:validateSeriesSnapshot(s.series)}:{}),...(s.publication!==undefined?{publication:validatePublication(s.publication)}:{}),...(s.inspiration!==undefined?{inspiration:validateInspirationOrigin(s.inspiration)}:{})};
 }
 export async function makeBundle(s:Story,get:(id:string)=>Promise<MediaAsset|undefined>):Promise<Blob>{
- validateStory(s);
+ s=validateStory(s);
  const files:Record<string,Uint8Array>={};const assets:Omit<MediaAsset,'blob'>[]=[];let bytes=0;
  for(const id of new Set(s.pages.flatMap(p=>p.assetId?[p.assetId]:[]))){
   const a=await get(id);if(!a)throw new Error('作品照片缺失，请重新选择后再备份。');

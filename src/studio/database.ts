@@ -12,7 +12,7 @@ export function openDB():Promise<IDBDatabase>{return new Promise((resolve,reject
 export function finish<T>(db:IDBDatabase,tx:IDBTransaction,result:()=>T):Promise<T>{return new Promise((resolve,reject)=>{tx.oncomplete=()=>{db.close();try{resolve(result());}catch(e){reject(e);}};tx.onerror=()=>{};tx.onabort=()=>{db.close();reject(tx.error||new Error('保存中断，当前修改尚未保存。'));};});}
 export async function allStories():Promise<Story[]>{const db=await openDB();const tx=db.transaction('stories');let rows:Story[]=[];tx.objectStore('stories').getAll().onsuccess=e=>{rows=(e.target as IDBRequest).result;};return finish(db,tx,()=>rows.map(validateStory).sort((a,b)=>b.updatedAt-a.updatedAt));}
 export async function saveStory(story:Story,expected:number):Promise<number>{
- validateStory(story);const db=await openDB();const tx=db.transaction(['stories','assets'],'readwrite');const store=tx.objectStore('stories');
+ story=validateStory(story);const db=await openDB();const tx=db.transaction(['stories','assets'],'readwrite');const store=tx.objectStore('stories');
  let next=0,conflict=false,missing=false;
  store.get(story.id).onsuccess=e=>{
   const old=(e.target as IDBRequest).result as Story|undefined;
@@ -43,7 +43,7 @@ export async function putAsset(asset:MediaAsset):Promise<void>{
  try{await finish(db,tx,()=>undefined);}catch(e){if(full)throw new Error('本机照片已达 100 张（含回收站）。请在回收站永久删除未使用的照片后再添加；已有作品保留。');throw e;}
 }
 export async function importStory(story:Story,assets:MediaAsset[]):Promise<void>{
- validateStory(story);const db=await openDB();const tx=db.transaction(['stories','assets'],'readwrite');
+ story=validateStory(story);const db=await openDB();const tx=db.transaction(['stories','assets'],'readwrite');
  const s=tx.objectStore('stories');s.get(story.id).onsuccess=e=>{if((e.target as IDBRequest).result){tx.abort();return;}s.put(story);for(const a of assets)tx.objectStore('assets').put(a);};
  return finish(db,tx,()=>undefined);
 }
