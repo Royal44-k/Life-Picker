@@ -13,8 +13,9 @@ export async function createVideoService({root,render=renderMemoryVideo,ttlMs=60
  const timer=setInterval(()=>void cleanup(),Math.min(ttlMs,60000));timer.unref();
  function kick(){if(worker||closed)return;worker=(async()=>{while(!closed){const job=[...jobs.values()].find(j=>j.status==='queued');if(!job)break;activeId=job.id;job.status='rendering';
    try{await mkdir(folder(job.id),{recursive:true});if(job.controller.signal.aborted)throw new DOMException('Cancelled','AbortError');const result=await render(job.source,folder(job.id),{signal:job.controller.signal,onProgress:n=>{if(job.status==='rendering')job.progress=n;}});
-    if(job.controller.signal.aborted)throw new DOMException('Cancelled','AbortError');job.result=result;job.progress=100;job.status='done';
+    if(job.controller.signal.aborted)throw new DOMException('Cancelled','AbortError');
     for(const name of await readdir(folder(job.id)))if(/^frame-\d+\.png$/.test(name)||name==='music.wav')await unlink(resolve(folder(job.id),name));
+    if(job.controller.signal.aborted)throw new DOMException('Cancelled','AbortError');job.result=result;job.progress=100;job.status='done';
    }catch(e){job.status=job.controller.signal.aborted?'cancelled':'failed';job.error=job.status==='cancelled'?'已取消，原相册保留。':e.message||'生成失败，请重试。';job.result=null;try{await remove(job.id);}catch{}}
    finally{job.source=null;job.finishedAt=Date.now();activeId=null;}
   }})().finally(()=>{worker=null;if(!closed&&[...jobs.values()].some(j=>j.status==='queued'))kick();});}

@@ -26,7 +26,7 @@ try{
  await first.getByRole('alert').filter({hasText:'连接码不正确'}).waitFor();
  const download=first.waitForEvent('download');await first.getByRole('button',{name:'下载当前编辑内容',exact:true}).click();assert.match(await readFile(await(await download).path(),'utf8'),/换连接码也不能丢失的编辑内容/);
  await first.getByLabel('电脑连接码').fill('12345678');await first.getByRole('button',{name:'连接来源库',exact:true}).click();await first.getByLabel('标题',{exact:true}).waitFor();assert.equal(await first.getByLabel('标题',{exact:true}).inputValue(),'换连接码也不能丢失的编辑内容');
- await first.context().close();
+ await first.unrouteAll({behavior:'wait'});await first.context().close();
  const catalog=join(root,'catalog.json'),broken=(await readFile(catalog,'utf8')).replace('保留这条真实来源','损坏这条真实来源');await writeFile(catalog,broken);
  handler=createSourceHandler(null,'12345678',{recover:bundle=>recoverSourceStore({root,bundle})});
  const second=await page();await second.getByText(/可在下方选择来源备份进行修复/).waitFor();await second.getByLabel('电脑连接码').fill('12345678');
@@ -44,4 +44,4 @@ try{
  const original=(await readdir(root)).find(n=>n.startsWith('catalog-before-recovery-'));assert.ok(original);assert.equal(await readFile(join(root,original),'utf8'),broken);
  await second.getByRole('button',{name:/查看来源：保留这条真实来源/}).waitFor();
  console.log('PASS changed connection code retains draft and visible error; damaged backup rejected; explicit repair preserves exact corrupt file and restores pending sources through real API.');
-}finally{await browser.close();await new Promise(r=>server.close(r));assert.ok(resolve(root).startsWith(parent+sep+'shiye-source-errors-'));await rm(root,{recursive:true,force:true});}
+}finally{for(const context of browser.contexts())for(const page of context.pages())await page.unrouteAll({behavior:'wait'});await browser.close();await new Promise(r=>server.close(r));assert.ok(resolve(root).startsWith(parent+sep+'shiye-source-errors-'));await rm(root,{recursive:true,force:true});}

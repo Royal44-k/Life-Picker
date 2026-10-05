@@ -30,7 +30,7 @@ export function InspirationComposer({source,onClose}:{source:PublishedSource;onC
    const fresh=await listEntries();if(chosen.some(e=>!fresh.some(r=>r.id===e.id&&r.revision===e.revision))){setEntries(fresh);throw new Error('所选记录发生变化，请重新核对当前选材后生成。');}
    try{sessionStorage.setItem('shiye:storyboard:code',code);}catch{}
    const response=await fetch('/api/inspiration',{method:'POST',headers:{'Content-Type':'application/json','X-Shiye-Code':code},body:JSON.stringify({reference:{id:source.id,revision:source.revision},records:chosen.map(({id,revision,date,text})=>({id,revision,date,text})),instruction,symbols}),signal:c.signal});const data=await response.json();if(!response.ok)throw new Error(data.error||'生成失败，选材与输入保留。');
-   if(!alive.current||t!==ticket.current||c.signal.aborted)return;const value=data as InspirationResult;validateInspirationOrigin({...value,version:1});setResult(value);setConfirmed(false);setDraft(proposalText(value.proposal));setBasis(fingerprint);
+   if(!alive.current||t!==ticket.current||c.signal.aborted)return;const value=data as InspirationResult;validateInspirationOrigin({...value,version:1});setResult(value);if(data.usageWarning)setError(data.usageWarning);setConfirmed(false);setDraft(proposalText(value.proposal));setBasis(fingerprint);
   }catch(e){if(alive.current&&t===ticket.current)setError(timedOut?'生成超时，输入保留；不会自动重试计费。':c.signal.aborted?'本次生成已取消，所选记录与输入保留。':(e as Error).message||'暂时连接不到模型，请手动重试。');}
   finally{clearTimeout(timer);if(alive.current&&t===ticket.current){inFlight.current=false;setBusy('');}}
  }

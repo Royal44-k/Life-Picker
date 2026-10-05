@@ -23,7 +23,7 @@ export function StoryboardAI({story,onApply,onClose}:{story:Story;onApply:(pages
    const response=await fetch('/api/storyboard',{method:'POST',headers:{'Content-Type':'application/json','X-Shiye-Code':code},body:JSON.stringify({source:story.source,sourceHash:hashText(story.source),target:story.settings.target,blocks,images}),signal:controller.signal});
    const data=await response.json();if(!response.ok)throw new Error(data.error||'AI 编排失败。');
    if(data.sourceHash!==hashText(story.source)||version.current!==story.id+':'+hashText(story.source))throw new Error('原文已变化，请关闭后重新生成。');
-   setPages(data.pages.map((p:StoryPage)=>({...newPage(p.source,p.role,p.sourceIds),diagram:p.diagram})));
+   if(data.usageWarning)setError(data.usageWarning);setPages(data.pages.map((p:StoryPage)=>({...newPage(p.source,p.role,p.sourceIds),diagram:p.diagram})));
   }catch(e){setError((e as Error).name==='AbortError'?'已取消，原作品保留。':(e as Error).message);}finally{setBusy(false);}
  }
  return <Modal title="AI 编辑成篇" onClose={()=>{if(busy)request.current?.abort();if(!pages.length||confirm('关闭分镜建议？尚未应用的建议不会保存。'))onClose();}} wide>

@@ -27,7 +27,7 @@ export function XiaoshiChat({entries,assets,messages,onMessages,onClose,onKeep,o
    const response=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json','X-Shiye-Code':code},signal:request.signal,body:JSON.stringify({message:prompt,history,records:records.map(e=>({id:e.id,date:e.date,text:e.text})),images})});
    const data=await response.json();if(!response.ok)throw new Error(data.error||'这次没能取得回复，请稍后重试。');
    if(request.signal.aborted)return;if(typeof data.text!=='string'||!data.text.trim()||data.text.length>6000)throw new Error('回复无效，你的输入仍保留。');
-   onMessages([...messages,{role:'user',content:prompt},{role:'assistant',content:data.text}]);setInput('');
+   if(data.usageWarning)setError(data.usageWarning);onMessages([...messages,{role:'user',content:prompt},{role:'assistant',content:data.text}]);setInput('');
   }catch(e){setError((e as Error).name==='AbortError'?'已取消或等待超时，输入仍保留。':(e as Error).message);}finally{clearTimeout(timer);if(controller.current===request){controller.current=null;setBusy(false);}}
  }
  function close(){if(input.trim()&&!confirm('关闭会丢弃输入框中尚未发送的文字，已完成对话暂存在当前页面。确定关闭？'))return;controller.current?.abort();onClose();}

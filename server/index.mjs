@@ -1,3 +1,4 @@
+import {createUsageStore} from './usage-store.mjs';
 import { createServer } from 'node:http';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve, extname, sep } from 'node:path';
@@ -16,7 +17,8 @@ if(existsSync(resolve(root,'.env')))process.loadEnvFile(resolve(root,'.env'));
 const port=Number(process.env.PORT||5173);const production=process.argv.includes('--prod');
 const pairCode=String(randomInt(10000000,100000000));
 const config={deepseekKey:process.env.DEEPSEEK_API_KEY||'',deepseekModel:process.env.DEEPSEEK_MODEL||'deepseek-flash',ollamaModel:process.env.OLLAMA_MODEL||''};
-const api=createAiHandler(config,pairCode,fetch,{getInspirationSource:async id=>sourceStore?(await sourceStore.published()).find(r=>r.id===id):null});
+let usage=null;try{usage=await createUsageStore({root:resolve(root,'.local/ai-usage')});}catch{console.error('AI 用量账本暂时无法读取，新 AI 调用已暂停，原文件保留。');}
+const api=createAiHandler(config,pairCode,fetch,{usage,getInspirationSource:async id=>sourceStore?(await sourceStore.published()).find(r=>r.id===id):null});
 const videoService=await createVideoService({root:resolve(root,'.local/video-jobs',String(port))});
 const videoApi=createVideoHandler(videoService,pairCode);
 const sourceRoot=resolve(root,'.local/source-catalog',String(port));

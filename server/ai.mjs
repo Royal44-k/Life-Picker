@@ -1,3 +1,4 @@
+import {meterCall,usageRequest} from './usage-api.mjs';
 import {generateInspiration,validateInspirationInput} from './inspiration.mjs';
 import { generateStoryboard, validateStoryboardInput } from './storyboard.mjs';
 import {generatePageCopy,validatePageInput} from './page-ai.mjs';
@@ -47,29 +48,31 @@ export async function generateCopy(input, config, fetcher=fetch, signal) {
   return {text,model:deepseek?config.deepseekModel:config.ollamaModel};
 }
 
-export function createAiHandler(config,pairCode,fetcher=fetch,{getInspirationSource}={}) {
+export function createAiHandler(config,pairCode,fetcher=fetch,{getInspirationSource,usage}={}) {
   let inFlight=0;let attempts=[];let requests=[];
   const send=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));};
   return async(req,res)=>{
     const path=req.url?.split('?')[0];
     if(path==='/api/status'&&req.method==='GET'){send(res,200,{deepseek:!!config.deepseekKey,ollama:!!config.ollamaModel,deepseekModel:config.deepseekModel,ollamaModel:config.ollamaModel});return;}
-    if(!['/api/ai','/api/storyboard','/api/page-ai','/api/chat','/api/inspiration'].includes(path)||req.method!=='POST'){send(res,404,{error:'未找到接口。'});return;}
+    const isUsage=path==='/api/usage'||path?.startsWith('/api/usage/');
+    if(!isUsage&&(!['/api/ai','/api/storyboard','/api/page-ai','/api/chat','/api/inspiration'].includes(path)||req.method!=='POST')){send(res,404,{error:'未找到接口。'});return;}
     if(req.headers.origin&&req.headers.origin!==`http://${req.headers.host}`&&req.headers.origin!==`https://${req.headers.host}`){send(res,403,{error:'请从拾页页面发起请求。'});return;}
     const now=Date.now();attempts=attempts.filter(t=>now-t<60_000);requests=requests.filter(t=>now-t<60_000);
     if(attempts.length>=10||requests.length>=20){send(res,429,{error:'请求过于频繁，请一分钟后再试。'});return;}
     const candidate=String(req.headers['x-shiye-code']||'');
     if(!/^\d{8}$/.test(candidate)||candidate.length!==pairCode.length||!timingSafeEqual(Buffer.from(candidate),Buffer.from(pairCode))){attempts.push(now);send(res,401,{error:'连接码不正确，请查看电脑启动窗口中的 8 位连接码。'});return;}
+    if(isUsage){requests.push(now);await usageRequest(req,res,usage,send);return;}
     if(inFlight>=2){send(res,429,{error:'已有文案正在生成，请等完成后再试。'});return;}
     requests.push(now);inFlight++;
-    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),75_000);
+    const controller=new AbortController();const meter=meterCall({store:usage,fetcher,path,signal:controller.signal});const timer=setTimeout(()=>controller.abort(),75_000);
     res.on('close',()=>{if(!res.writableEnded)controller.abort();});
     try{
       let chunks=[];let bytes=0;
       for await(const chunk of req){bytes+=chunk.length;if(bytes>(['/api/storyboard','/api/chat'].includes(path)?1_500_000:100_000)){send(res,413,{error:'请求内容太长，请缩短文案。'});return;}chunks.push(chunk);}
       let body;try{body=JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{send(res,400,{error:'请求格式不正确。'});return;}
       try{(path==='/api/inspiration'?validateInspirationInput:path==='/api/storyboard'?validateStoryboardInput:path==='/api/page-ai'?validatePageInput:path==='/api/chat'?validateChatInput:validateAiInput)(body);}catch(e){send(res,400,{error:e.message});return;}
-      const result=path==='/api/inspiration'?await generateInspiration(body,config,fetcher,controller.signal,getInspirationSource):await (path==='/api/storyboard'?generateStoryboard:path==='/api/page-ai'?generatePageCopy:path==='/api/chat'?chatWithXiaoshi:generateCopy)(body,config,fetcher,controller.signal);send(res,200,result);
-    }catch(e){if(!res.destroyed)send(res,502,{error:controller.signal.aborted?'等待超过 75 秒，请稍后重试或切换模型。':e.message==='fetch failed'?'连接不到模型服务，请检查电脑联网或 Ollama 是否运行。':e.message||'生成失败，请重试。'});}
+      const result=path==='/api/inspiration'?await generateInspiration(body,config,meter.fetch,controller.signal,getInspirationSource):await (path==='/api/storyboard'?generateStoryboard:path==='/api/page-ai'?generatePageCopy:path==='/api/chat'?chatWithXiaoshi:generateCopy)(body,config,meter.fetch,controller.signal);const usageWarning=await meter.finish(controller.signal.aborted?'cancelled':'completed');send(res,200,{...result,...(usageWarning?{usageWarning}:{})});
+    }catch(e){const usageWarning=await meter.finish(controller.signal.aborted?'cancelled':'error');if(!res.destroyed)send(res,502,{usageWarning,error:controller.signal.aborted?'等待超过 75 秒，请稍后重试或切换模型。':e.message==='fetch failed'?'连接不到模型服务，请检查电脑联网或 Ollama 是否运行。':e.message||'生成失败，请重试。'});}
     finally{clearTimeout(timer);inFlight--;}
   };
 }

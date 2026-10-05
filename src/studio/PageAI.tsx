@@ -24,7 +24,7 @@ export function PageAI({story,page,onClose,onApply}:{story:Story;page:StoryPage;
    const data=await response.json();if(!response.ok)throw new Error(data.error||'本次未获得建议，页面保留。');
    if(request.signal.aborted)return;
    if(typeof data.text!=='string'||data.text.length>8000||!data.text.trim()||data.revision!==snapshot.revision)throw new Error('返回的建议无效，页面保持不变。');
-   setCandidate({text:data.text,revision:data.revision,original:snapshot.source});
+   if(data.usageWarning)setError(data.usageWarning);setCandidate({text:data.text,revision:data.revision,original:snapshot.source});
    if(pageVersion(latest.current.story,latest.current.page)!==snapshot.revision)setError('等待期间内容已变化，这份建议不能覆盖当前页。');
   }catch(e){setError((e as Error).name==='AbortError'?'已取消或等待超时，当前页面保持不变。':(e as Error).message);}
   finally{clearTimeout(timer);if(controller.current===request){controller.current=null;setBusy(false);}}

@@ -26,7 +26,7 @@ export function AiPanel({source,onApply,onClose,notify,initialTone="真诚自然
     try{
       const res=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json','X-Shiye-Code':code},body:JSON.stringify({provider,mode,source:mode==='polish'?source:'',topic,tone,length:Number(length),symbols}),signal:abort.current.signal});
       const data=await res.json();if(!res.ok)throw new Error(data.error||'生成失败，请重试。');
-      setResult(data.text);try{sessionStorage.setItem('shiye:ai-code',code);}catch{/* private browsing */}
+      setResult(data.text);if(data.usageWarning)setError(data.usageWarning);try{sessionStorage.setItem('shiye:ai-code',code);}catch{/* private browsing */}
       notify('文案已生成，请检查内容后再放入排版');
     }catch(e){if(e instanceof Error&&e.name==='AbortError')setError('已取消等待，可稍后重试。');else setError(e instanceof Error?e.message:'网络连接中断。');}
     finally{setBusy(false);abort.current=null;}
