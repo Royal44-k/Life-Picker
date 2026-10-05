@@ -1,0 +1,8 @@
+// Exact original files verified against the publishers on 2026-10-05.
+// These are selected illustrations, not a live feed of new designs.
+const cc0={license:'CC0-1.0',legalUrl:'https://creativecommons.org/publicdomain/zero/1.0/legalcode.txt',licenseSha256:'a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499',author:'Pablo Stanley'};
+export const PUBLIC_ASSETS=[
+ {...cc0,id:'doodles-reading',sourceId:'open-doodles',title:'手绘日常 · 读书时刻',url:'https://opendoodles.s3-us-west-1.amazonaws.com/reading.png',pageUrl:'https://www.opendoodles.com/',licensePageUrl:'https://www.opendoodles.com/about',sha256:'974d22ab4ba05d9b2eaf03b2b3b495320444ad8d2db94319712d78bbc75e274a',bytes:226461,width:2048,height:1536,tags:['手绘','阅读','日常'],summary:'为阅读记录和自己的小发现留出一处手绘点缀。图片来自 Open Doodles，文字由你来写。'},
+ {...cc0,id:'doodles-plant',sourceId:'open-doodles',title:'手绘日常 · 照料绿植',url:'https://opendoodles.s3-us-west-1.amazonaws.com/plant.png',pageUrl:'https://www.opendoodles.com/',licensePageUrl:'https://www.opendoodles.com/about',sha256:'5b2c485e4a3f1ed949c3ac43efa59ba8309d3a43b8c0ce2b09ec0146106b7bdf',bytes:334758,width:2048,height:1536,tags:['手绘','植物','日常'],summary:'适合搭配日常照料、生活观察或成长记录。素材用于装饰，不作为真实经历的照片。'},
+ {...cc0,id:'peeps-76',sourceId:'open-peeps',title:'手绘人物 · Peep 76',url:'https://cdn.prod.website-files.com/5e51c674258ffe10d286d30a/5e535a877371bbe27fa0b695_peep-76.png',pageUrl:'https://www.openpeeps.com/',licensePageUrl:'https://www.openpeeps.com/',sha256:'44f544563c7fed16d5478f25de5a4d3d0b0e06b6b5a87fa86163f1c07c00a582',bytes:69422,width:720,height:972,tags:['手绘','人物'],summary:'Open Peeps 的手绘人物，可搭配自己的想法与经验。使用时保留素材出处。'}
+].map(Object.freeze);
