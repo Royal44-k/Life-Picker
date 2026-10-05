@@ -179,3 +179,10 @@
 - Ruling：临时发布烟雾脚本最初错误假定 fault 为 null、审核状态在 status。核对实际 API / 模型后改为 fault 空字符串和 review.state；没有改动产品以迁就测试。最终脚本与实际模型一致，完整只读检查通过。
 - 证据：artifacts/v13-release-smoke.json、v13-release-smoke.txt、v13-release-usage-offline.txt、v13-final-build.txt。电脑当前局域网为 192.168.77.8；不同访问地址具有独立浏览器存储，交付会提醒旧数据不是自动迁移。
 - 本次提交包含版本号、指南、离线清单和发布记录。随后从提交生成源码 ZIP、逐文件校验、保存本地 v1.3.0 标签；归档验证记录另行补记，不能以本段代替实际校验。
+## 2026-10-05 Task 6：v1.3.0 本机交付完成
+- 发布提交：8b4158cf38eab2a509f01def72566f1f3a9a0341；本地注释标签 v1.3.0 已核对指向该提交。保留 feat/shiye-1.3 分支，不推送、合并或创建远端 PR。
+- 最终源码归档：releases/shiye-v1.3.0-source.zip，226 个文件、523,761 字节；逐文件 SHA256 与该提交的 Git blob 原始字节一致。全包 SHA256：3ee29e3852023c2b9d63586a2c69f3eb49774f23f80e252f0e37ebff3768fca7；相邻 .sha256 文件留底。
+- 归档检查通过：package / lock 均为 1.3.0，含新指南和链接 / 计量修复；不含真实 .env、.local、artifacts、node_modules、dist、FFmpeg 或浏览器私人记录。
+- Ruling：第一份候选 ZIP 被 Git core.autocrlf=true 转成 CRLF，严格字节校验发现差异。核对实际字节后将该未发布候选保留在 artifacts，显式 core.autocrlf=false 重新生成最终归档，再对照 Git blob 逐文件 SHA256；没有降低为仅文本相似比较，也没有覆盖任何旧版本归档。
+- v1.0.0、v1.1.0、v1.1.1、v1.2.0 四份旧 ZIP 均与各自原校验文件一致，旧标签保留。最终证据 artifacts/v13-release-archive.json / .txt。发布后的本提交只补记文档验收，v1.3.0 标签与源码包继续固定在已验证的发布提交。
+- Task 1～6：complete（本机个人版本开发、实测、整体审查修复、指南与可恢复版本交付）。没有把实际小红书登录、公网账户 / HTTPS、云费用或 iPhone Safari 真机验收写成已完成；它们仍是上述独立外部条件。本次交付已到用户实际试用环节。
