@@ -1,3 +1,4 @@
+import {validatePublication,emptyPublication} from '../src/series/model.ts';
 import test from 'node:test';import assert from 'node:assert/strict';
 import {planStory} from '../src/studio/planner.ts';import {DEFAULT_OPTIONS} from '../src/core/layout.ts';import {validateStory,makeBundle,readBundle} from '../src/studio/backup.ts';
 const series={id:'series-1',revision:2,name:'窗边札记',topic:'阅读与生活观察',tone:'温柔治愈'};
@@ -8,3 +9,7 @@ test('work rejects invalid series revisions and unsupported tone defaults',()=>{
 test('publication rejects unsafe links, impossible dates and invented unknown-number coercion',()=>{for(const invalid of [{...publication,url:'javascript:alert(1)'},{...publication,url:'https://user:password@example.com/'},{...publication,date:'2026-02-30'},{...publication,metrics:{...publication.metrics,views:-1}},{...publication,metrics:{...publication.metrics,likes:'未知'}},{...publication,reflection:'文'.repeat(3001)}])assert.throws(()=>validateStory({...story(),publication:invalid}),/发布|回看/);});
 
 test('publication backup removes known login parameters without mutating the editing object',async()=>{const s=story();s.publication={...publication,url:'https://example.com/post?%78sec_token=PRIVATE_TOKEN&api_key=PRIVATE_KEY&item=3#auth_token=PRIVATE_FRAGMENT'};const blob=await makeBundle(s,async()=>undefined),restored=readBundle(new Uint8Array(await blob.arrayBuffer()));assert.equal(restored.story.publication.url,'https://example.com/post?item=3');assert.ok(s.publication.url.includes('PRIVATE_TOKEN'));});
+
+test('publication links remove nested and malformed-neighbor encoded credential fragments',()=>{
+ for(const url of ['https://example.com/#bad%ZZ&api_key%3DPRIVATE','https://example.com/?%2561ccess_token=PRIVATE&id=42','https://example.com/#refresh_token%253DPRIVATE'])assert.ok(!JSON.stringify(validatePublication({...emptyPublication(),url})).includes('PRIVATE'));
+});

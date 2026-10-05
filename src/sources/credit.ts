@@ -1,3 +1,4 @@
+import {hasLinkCredentials} from './links.mjs';
 export interface SourceCredit {
  version:1;recordId:string;revision:number;title:string;url:string;author:string;authorUrl:string|null;
  collectedAt:number;checkedAt:number;license:'CC0-1.0'|'MIT'|'own'|'custom';licenseUrl:string;
@@ -6,7 +7,7 @@ export interface SourceCredit {
 const text=(value:unknown,max:number,required=false)=>typeof value==='string'&&value.length<=max&&(!required||!!value.trim());
 export function safeSourceLink(value:unknown):value is string{
  if(typeof value!=='string'||value.length>2048)return false;
- try{const u=new URL(value);return ['http:','https:'].includes(u.protocol)&&!u.username&&!u.password&&!/\b(xsec_token|access_token|refresh_token|auth_token|authorization|bearer|api_key)=/i.test(u.search+u.hash);}catch{return false;}
+ try{const u=new URL(value);return ['http:','https:'].includes(u.protocol)&&!u.username&&!u.password&&!hasLinkCredentials(u);}catch{return false;}
 }
 export function validateSourceCredit(value:unknown):SourceCredit{
  const c=value as SourceCredit;

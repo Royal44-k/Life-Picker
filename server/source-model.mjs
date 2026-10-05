@@ -1,10 +1,11 @@
+import {stripLinkCredentials} from '../src/sources/links.mjs';
 import {randomUUID} from 'node:crypto';
 const kinds=['reference','asset'],uses=['unknown','reference-only','reusable'],licenses=['unknown','CC0-1.0','MIT','own','custom'];
 const states=['pending','approved','rejected'],imageTypes=['image/svg+xml','image/png','image/jpeg','image/webp'];
 const idPattern=/^[\w:-]{1,100}$/;
 const text=(value,max,label,required=false)=>{if(typeof value!=='string'||value.length>max||required&&!value.trim())throw new Error(label+'格式不正确或超过限制。');return value.trim();};
 const time=(value,label,nullable=false)=>{if(nullable&&value==null)return null;if(!Number.isSafeInteger(value)||value<0)throw new Error(label+'无效。');return value;};
-function link(value,nullable=false){if(nullable&&(value==null||value===''))return null;if(typeof value!=='string'||value.length>2048)throw new Error('请提供有效的公开来源链接。');let url;try{url=new URL(value);}catch{throw new Error('请提供完整的 http 或 https 来源链接。');}if(!['https:','http:'].includes(url.protocol)||url.username||url.password)throw new Error('来源链接不支持此协议或内含登录口令。');for(const key of [...url.searchParams.keys()])if(/^(?:xsec_token|access_token|refresh_token|auth_token|authorization|bearer|api_key)$/i.test(key))url.searchParams.delete(key);if(/(?:^|[?&#/])(?:xsec_token|access_token|refresh_token|auth_token|authorization|bearer|api_key)=/i.test(url.hash))url.hash='';return url.toString();}
+function link(value,nullable=false){if(nullable&&(value==null||value===''))return null;if(typeof value!=='string'||value.length>2048)throw new Error('请提供有效的公开来源链接。');let url;try{url=new URL(value);}catch{throw new Error('请提供完整的 http 或 https 来源链接。');}if(!['https:','http:'].includes(url.protocol)||url.username||url.password)throw new Error('来源链接不支持此协议或内含登录口令。');stripLinkCredentials(url);return url.toString();}
 export function canonicalSourceUrl(value){const url=new URL(link(value));url.hash='';for(const key of [...url.searchParams.keys()])if(/^utm_/i.test(key)||['spm','share_from_user_hidden','xsec_source','app_platform','app_version','xsec_token'].includes(key.toLowerCase()))url.searchParams.delete(key);if(['xiaohongshu.com','www.xiaohongshu.com'].includes(url.hostname)){url.hostname='www.xiaohongshu.com';url.protocol='https:';url.pathname=url.pathname.replace(/^\/discovery\/item\//,'/explore/');}url.searchParams.sort();return url.toString();}
 function published(value){if(value==null||value==='')return null;if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2}))?$/.test(value)||!Number.isFinite(Date.parse(value)))throw new Error('发布日期无效，不确定时请留空。');if(new Date(value.slice(0,10)).toISOString().slice(0,10)!==value.slice(0,10))throw new Error('发布日期无效。');return value;}
 export function parseSourceDraft(input){
@@ -36,7 +37,7 @@ export function createCandidate(input,{id=randomUUID(),now=Date.now()}={}){
 }
 export function validateCandidate(value){
  if(!value||value.version!==1||typeof value.id!=='string'||!idPattern.test(value.id)||!Number.isSafeInteger(value.revision)||value.revision<1)throw new Error('来源记录或修订无效。');
- const data=parseSourceDraft(value);if(data.canonicalUrl!==value.canonicalUrl)throw new Error('来源规范链接不一致。');
+ const data=parseSourceDraft(value);if(data.canonicalUrl!==canonicalSourceUrl(value.canonicalUrl))throw new Error('来源规范链接不一致。');
  const review=value.review;if(!review||!states.includes(review.state))throw new Error('审核状态无效。');
  const row={version:1,id:value.id,revision:value.revision,...data,collectedAt:time(value.collectedAt,'采集时间'),createdAt:time(value.createdAt,'创建时间'),updatedAt:time(value.updatedAt,'更新时间'),review:{state:review.state,note:text(review.note??'',1000,'审核说明'),at:time(review.at,'审核时间',true)},trashedAt:time(value.trashedAt,'回收时间',true)};
  if(row.review.state!=='pending'&&row.review.at===null)throw new Error('缺少审核时间。');if(row.review.state==='rejected'&&!row.review.note)throw new Error('请填写不通过的原因。');

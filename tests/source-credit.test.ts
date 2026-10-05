@@ -21,3 +21,9 @@ test('journal export and restore preserve shared illustration credit and reject 
  const blob=await makeJournalBundle([entry],[],async()=>asset);assert.deepEqual(readJournalBundle(new Uint8Array(await blob.arrayBuffer())).assets[0].sourceCredit,credit);
  await assert.rejects(()=>makeJournalBundle([entry],[],async()=>({...asset,sourceCredit:{...credit,url:'file:///private'}})),/来源/);
 });
+
+test('provenance rejects encoded credentials in query names and fragments',async()=>{
+ const {safeSourceLink,validateSourceCredit}=await import('../src/sources/credit.ts');
+ for(const url of ['https://example.com/#access_token%3Dsecret','https://example.com/?%61ccess_token=secret','https://example.com/#bad%ZZ&api_key%3Dsecret','https://example.com/?%2561ccess_token=secret','https://example.com/#refresh_token%253Dsecret']){assert.equal(safeSourceLink(url),false,url);assert.throws(()=>validateSourceCredit({...credit,authorUrl:url}),/来源/);}
+ assert.equal(safeSourceLink('https://example.com/?id=42#section%202'),true);
+});

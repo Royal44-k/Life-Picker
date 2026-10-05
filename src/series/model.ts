@@ -1,3 +1,4 @@
+import {stripLinkCredentials} from '../sources/links.mjs';
 import type {CardOptions} from '../core/types.ts';
 import {isOptions,makeId} from '../core/storage.ts';
 import {DEFAULT_OPTIONS} from '../core/layout.ts';
@@ -15,8 +16,7 @@ export function validateSeries(value:unknown):PersonalSeries{const s=value as Pe
 export function newSeries():PersonalSeries{return {version:1,id:makeId(),revision:0,name:'',topic:'',tone:'真诚自然',defaults:{...DEFAULT_OPTIONS,theme:'forest',author:'',series:''},archived:false,createdAt:Date.now(),updatedAt:Date.now()};}
 export function cleanPublicationUrl(value:unknown):string|null{
  if(value===null||value==='')return null;if(typeof value!=='string'||value.length>2048)throw new Error('发布链接过长或格式无效。');let u:URL;try{u=new URL(value);}catch{throw new Error('请填写完整的 http 或 https 发布链接。');}if(!['http:','https:'].includes(u.protocol)||u.username||u.password)throw new Error('发布链接不支持此协议或包含登录口令。');
- const sensitive=/^(xsec_token|access_token|refresh_token|auth_token|authorization|bearer|api_key)$/i;for(const key of [...u.searchParams.keys()])if(sensitive.test(key))u.searchParams.delete(key);
- let fragment=u.hash;try{fragment=decodeURIComponent(fragment);}catch{}if(/(?:^|[?&#/])(?:xsec_token|access_token|refresh_token|auth_token|authorization|bearer|api_key)=/i.test(fragment))u.hash='';return u.toString();
+ stripLinkCredentials(u);return u.toString();
 }
 export function validatePublication(value:unknown):Publication{
  const p=value as Publication;if(!p||p.version!==1||!dateOK(p.date)||!dateOK(p.observedOn)||!p.metrics||['views','likes','favorites','comments'].some(k=>{const n=p.metrics[k as keyof Publication['metrics']];return n!==null&&(!Number.isSafeInteger(n)||n<0||n>1_000_000_000_000);})||!textOK(p.reflection,3000)||!textOK(p.nextIdea,1000)||!timeOK(p.updatedAt))throw new Error('发布回看信息无效：日期需真实，互动数为非负整数，未知时请留空。');

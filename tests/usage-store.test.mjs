@@ -43,3 +43,7 @@ test('independent Node processes share reservations and orphaned holds survive r
 test('orphan reconciliation accepts the exact revision shown by snapshot',()=>fixture(async({root,store})=>{
  const {execFile}=await import('node:child_process'),{promisify}=await import('node:util');await promisify(execFile)(process.execPath,['--input-type=module','-e',`import {createUsageStore} from ${JSON.stringify(new URL('../server/usage-store.mjs',import.meta.url).href)};const s=await createUsageStore({root:${JSON.stringify(root)}});await s.reserve(${JSON.stringify(request)});`]);const data=await store.snapshot();assert.equal(data.rows[0].status,'interrupted');await store.reconcile(data.rows[0].id,.01,'2026-10-05',data.rows[0].revision);assert.equal((await store.snapshot()).rows[0].manual.yuan,.01);
 }));
+
+test('one reservation crossing midnight uses one timestamp for billing month and remains readable',()=>fixture(async({root})=>{
+ const before=Date.parse('2026-10-31T15:59:59.999Z'),after=before+1;let calls=0;const store=await createUsageStore({root,now:()=>calls++===0?before:after});const row=await store.reserve(request);assert.equal(row.month,billingMonth(row.startedAt));assert.equal(row.startedAt,before);const data=await store.snapshot();assert.equal(data.rows[0].id,row.id);assert.equal(data.month.key,'2026-11');assert.equal(data.month.committedYuan,0);await store.finish(row.id,{status:'completed',usage});assert.equal((await store.snapshot()).rows[0].estimatedYuan,.002816);
+}));

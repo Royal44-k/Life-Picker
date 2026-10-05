@@ -21,3 +21,9 @@ test('approval acknowledgement requires the explicit boolean value true',()=>{
  const row=createCandidate({kind:'reference',originalUrl:'https://example.com/reference',title:'需要明确核对',summary:'自己的分析',rights:{usage:'reference-only'}});
  assert.throws(()=>reviewCandidate(row,{action:'approve',acknowledged:'false'}),/确认|核对/);
 });
+
+test('encoded credential names and fragments are removed from source ingestion and public output',()=>{
+ const row=createCandidate(draft({originalUrl:'https://example.com/note?id=42&%61ccess_token=PRIVATE_QUERY#section',author:{name:'作者',url:'https://example.com/profile#access_token%3DPRIVATE_AUTHOR'},rights:{usage:'reference-only',licenseUrl:'https://example.com/license#bad%ZZ&api_key%3DPRIVATE_LICENSE',checkedAt:now}}),{now});
+ assert.ok(!JSON.stringify(row).includes('PRIVATE_'));assert.equal(row.originalUrl,'https://example.com/note?id=42#section');const approved=reviewCandidate(row,{action:'approve',acknowledged:true},{now});assert.ok(!JSON.stringify(publicCandidate({...approved,author:{name:'作者',url:'https://example.com/#refresh_token%253DPRIVATE_OLD'}})).includes('PRIVATE_'));
+ const asset=createCandidate(draft({kind:'asset',asset:{url:'https://example.com/a.png?%2561ccess_token=PRIVATE_ASSET&size=2',type:'image/png',sha256:'a'.repeat(64),bytes:100}}),{now});assert.equal(asset.asset.url,'https://example.com/a.png?size=2');
+});
