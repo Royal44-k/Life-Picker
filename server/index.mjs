@@ -9,6 +9,8 @@ import {createVideoService} from './video-jobs.mjs';
 import {createVideoHandler} from './video-api.mjs';
 import {createSourceStore,recoverSourceStore} from './source-store.mjs';
 import {createSourceHandler} from './source-api.mjs';
+import {createPublicAssetCache} from './source-assets.mjs';
+import {createSourceJobs} from './source-jobs.mjs';
 const root=resolve(fileURLToPath(new URL('..',import.meta.url)));
 if(existsSync(resolve(root,'.env')))process.loadEnvFile(resolve(root,'.env'));
 const port=Number(process.env.PORT||5173);const production=process.argv.includes('--prod');
@@ -21,7 +23,14 @@ const sourceRoot=resolve(root,'.local/source-catalog',String(port));
 let sourceStore=null;
 try{sourceStore=await createSourceStore({root:sourceRoot});}
 catch{console.error('来源库暂时无法读取，原文件保留。可在“我的 → 来源与审核”使用备份修复，其他功能仍可使用。');}
-const sourceApi=createSourceHandler(sourceStore,pairCode,{recover:bundle=>recoverSourceStore({root:sourceRoot,bundle})});
+let sourceAssets=null,sourceJobs=null;
+try{
+ sourceAssets=await createPublicAssetCache({root:resolve(root,'.local/source-assets',String(port))});
+ sourceJobs=await createSourceJobs({root:resolve(root,'.local/source-jobs',String(port)),getStore:()=>sourceStore,assets:sourceAssets});
+}catch{console.error('公开素材任务暂时无法启动，原任务文件保留。手动来源仍可管理。');}
+const sourceApi=createSourceHandler(sourceStore,pairCode,{assets:sourceAssets,jobs:sourceJobs,recover:async bundle=>{
+ const result=await recoverSourceStore({root:sourceRoot,bundle});sourceStore=result.store;return result;
+}});
 const localIps=Object.values(networkInterfaces()).flat().filter(x=>x?.family==='IPv4'&&!x.internal).map(x=>x.address);
 const hosts=new Set(['localhost','127.0.0.1',...localIps]);
 const vite=production?null:await(await import('vite')).createServer({root,server:{middlewareMode:true,host:'0.0.0.0',hmr:false,watch:{ignored:['**/artifacts/**','**/.local/**','**/releases/**','**/docs/**','**/tests/**','**/.env*']}},appType:'spa'});
@@ -46,7 +55,9 @@ const server=createServer(async(req,res)=>{
     res.setHeader('Cache-Control',file.includes(`${sep}assets${sep}`)?'public, max-age=31536000, immutable':'no-cache');res.end(readFileSync(file));
   }catch{res.writeHead(400);res.end('Bad request');}
 });
+server.on('close',()=>sourceJobs?.close());
 server.listen(port,'0.0.0.0',()=>{
+  sourceJobs?.startScheduler();
   console.log(`\n拾页已启动 · 保持此窗口运行\n电脑地址：http://localhost:${port}\n`);
   for(const ip of localIps)console.log(`iPhone 同一 Wi-Fi 打开：http://${ip}:${port}`);
   console.log(`\nAI 连接码：${pairCode}\nDeepSeek：${config.deepseekKey?'已配置':'尚未配置'}；Ollama：${config.ollamaModel||'尚未配置'}\n停止运行：Ctrl+C\n`);

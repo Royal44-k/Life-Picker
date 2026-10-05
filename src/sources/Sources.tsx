@@ -5,6 +5,8 @@ import {sourceRequest} from './api.ts';
 import {fromSourceForm,toSourceForm} from './types.ts';
 import type {SourceBackup,SourceForm,SourceRecord,SourceStatus} from './types.ts';
 import {SourceFacts,SourceFields} from './SourceFields.tsx';
+import {SourceCollection} from './SourceCollection.tsx';
+import {SourceAssetPreview} from './SourceAssetPreview.tsx';
 import '../studio/studio.css';
 import './sources.css';
 
@@ -26,6 +28,7 @@ export default function Sources(){
  const [editor,setEditor]=useState<Editor|null>(null),[ack,setAck]=useState(false),[note,setNote]=useState('');
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState(''),[undo,setUndo]=useState<SourceRecord|null>(null);
  const [backup,setBackup]=useState<{bundle:SourceBackup;count:number;name:string}|null>(null),[recoveryAck,setRecoveryAck]=useState(false);
+ const catalogEpoch=useRef(0);
  const inFlight=useRef(false),leaving=useRef(false),editTop=useRef<HTMLElement>(null);
  const dirty=!!editor&&JSON.stringify(editor.form)!==editor.baseline,unsaved=dirty||!!note.trim();
  const api=<T,>(path:string,method='GET',body?:unknown)=>sourceRequest<T>(path,code,{method,body:body===undefined?undefined:JSON.stringify(body)});
@@ -35,7 +38,7 @@ export default function Sources(){
    if(controller.signal.aborted)return;setStatus(next);
    if(next.ready&&/^\d{8}$/.test(saved)){
     const data=await sourceRequest<{records:SourceRecord[]}>('catalog',saved,{signal:controller.signal});
-    if(!controller.signal.aborted){setRecords(data.records);setConnected(true);}
+    if(!controller.signal.aborted){catalogEpoch.current++;setRecords(data.records);setConnected(true);}
    }
   }).catch(e=>{if(!controller.signal.aborted)setError(e.message);}).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
   return()=>controller.abort();
@@ -47,7 +50,7 @@ export default function Sources(){
  function discardAllowed(){return !unsaved||confirm('当前编辑内容尚未保存。可以先下载编辑内容；确定放弃这些修改吗？');}
  function navigate(href:string){if(inFlight.current||!discardAllowed())return;leaving.current=true;location.href=href;}
  function select(row:SourceRecord|null){if(inFlight.current||!discardAllowed())return;setEditor(openEditor(row));setAck(false);setNote('');setError('');setMessage('');requestAnimationFrame(()=>editTop.current?.scrollIntoView({block:'start'}));}
- function upsert(row:SourceRecord){setRecords(old=>[row,...old.filter(r=>r.id!==row.id)].sort((a,b)=>b.updatedAt-a.updatedAt));}
+ function upsert(row:SourceRecord){catalogEpoch.current++;setRecords(old=>[row,...old.filter(r=>r.id!==row.id)].sort((a,b)=>b.updatedAt-a.updatedAt));}
  function accept(row:SourceRecord){upsert(row);setEditor(openEditor(row));setAck(false);setNote('');}
  async function run(action:()=>Promise<void>){
   if(inFlight.current)return;inFlight.current=true;setBusy(true);setError('');setMessage('');
@@ -57,7 +60,7 @@ export default function Sources(){
  async function connect(){
   const next=await sourceRequest<SourceStatus>('status');setStatus(next);
   if(!next.ready){setConnected(false);throw new Error(next.error||'来源库暂时不可用，原文件保留。');}
-  const data=await api<{records:SourceRecord[]}>('catalog');setRecords(data.records);setConnected(true);remember(code);setMessage('已连接电脑来源库');
+  const data=await api<{records:SourceRecord[]}>('catalog');catalogEpoch.current++;setRecords(data.records);setConnected(true);remember(code);setMessage('已连接电脑来源库');
  }
  async function save(){
   if(!editor)return;const draft=fromSourceForm(editor.form,editor.row);
@@ -77,13 +80,13 @@ export default function Sources(){
  }
  async function reloadEditor(){
   if(!editor?.row||!discardAllowed())return;
-  const data=await api<{records:SourceRecord[]}>('catalog'),latest=data.records.find(r=>r.id===editor.row!.id);setRecords(data.records);
+  const data=await api<{records:SourceRecord[]}>('catalog'),latest=data.records.find(r=>r.id===editor.row!.id);catalogEpoch.current++;setRecords(data.records);
   if(!latest)throw new Error('这条来源已被永久删除。当前编辑内容仍保留，可下载后重新添加。');
   accept(latest);setMessage('已载入电脑上的最新版本');
  }
  async function erase(){
   if(!editor?.row||!confirm('永久删除这条来源后无法撤销。已有备份不会一同删除，确定永久删除吗？'))return;
-  const id=editor.row.id;await api('records/'+id,'DELETE',{expected:editor.row.revision});setRecords(old=>old.filter(r=>r.id!==id));setEditor(null);if(undo?.id===id)setUndo(null);setMessage('来源已永久删除');
+  const id=editor.row.id;await api('records/'+id,'DELETE',{expected:editor.row.revision});catalogEpoch.current++;setRecords(old=>old.filter(r=>r.id!==id));setEditor(null);if(undo?.id===id)setUndo(null);setMessage('来源已永久删除');
  }
  async function readBackup(file:File){
   if(file.size>18_000_000)throw new Error('来源备份超过 18 MB，无法读取。');
@@ -98,8 +101,13 @@ export default function Sources(){
   const result=await api<{added:number;skipped?:number}>(repairing?'recover':'restore','POST',{bundle:backup.bundle,acknowledged:recoveryAck});
   setStatus({ready:true,mode:'local-computer',requiresPairing:true,maxRecords:500});setBackup(null);setRecoveryAck(false);remember(code);
   const success=repairing?'已从备份修复，损坏原文件保留。新增 '+result.added+' 条，均需重新审核。':'恢复完成：新增 '+result.added+' 条，跳过已有 '+(result.skipped||0)+' 条。';
-  try{const data=await api<{records:SourceRecord[]}>('catalog');setRecords(data.records);setConnected(true);setMessage(success);}
+  try{const data=await api<{records:SourceRecord[]}>('catalog');catalogEpoch.current++;setRecords(data.records);setConnected(true);setMessage(success);}
   catch{setMessage(success);throw new Error('恢复已完成，但列表暂未读回。请刷新列表，不要重复恢复。');}
+ }
+ async function refreshCollected(signal:AbortSignal){
+  if(inFlight.current)return false;const epoch=catalogEpoch.current,data=await sourceRequest<{records:SourceRecord[]}>('catalog',code,{signal});
+  if(signal.aborted||epoch!==catalogEpoch.current||inFlight.current)return false;
+  catalogEpoch.current++;setRecords(data.records);return true;
  }
  const matches=(r:SourceRecord,f:Filter)=>f==='trash'?r.trashedAt!==null:r.trashedAt===null&&(f==='all'||r.review.state===f);
  const visible=records.filter(r=>matches(r,filter)&&[r.title,r.summary,r.analysis,r.author.name,...r.tags].join(' ').toLowerCase().includes(query.trim().toLowerCase()));
@@ -116,6 +124,7 @@ export default function Sources(){
    {message&&<p className="source-message" role="status"><Check size={16}/>{message}</p>}
    {undo&&<div className="source-undo"><span>“{undo.title}”已移入回收站</span><button disabled={busy} onClick={()=>void run(()=>trash(undo,false))}><RotateCcw size={16}/>撤销删除</button></div>}
    {status?.ready===false&&<p className="source-error">{status.error||'来源库暂时不可用，原文件保留。'}{status.canRecover?'可在下方选择来源备份进行修复。':''}</p>}
+   {connected&&<SourceCollection code={code} disabled={busy} onSettled={refreshCollected}/> }
    {connected&&<div className="source-workspace">
     <section className="source-collection" aria-label="来源列表">
      <div className="source-section-head"><h2>我的来源夹 <small>{records.length} / 500</small></h2><button className="source-primary" disabled={busy} onClick={()=>select(null)}><Plus size={17}/>添加来源</button></div>
@@ -127,6 +136,8 @@ export default function Sources(){
      <div className="source-section-head"><h2>{trashed?'回收站里的来源':row?'整理这条来源':'留下一条新来源'}</h2><button disabled={busy} onClick={()=>{if(discardAllowed()){setEditor(null);setNote('');setAck(false);setError('');}}}>收起</button></div>
      <p className="sources-detail-state">{dirty?'修改尚未保存到电脑':row?names[trashed?'trash':row.review.state]+' · 修订 '+row.revision:'填写后保存到电脑来源库'}</p>
      {error&&<p className="source-error" role="alert">{error}</p>}
+     {row?.asset&&<SourceAssetPreview row={row} code={code}/>}
+     {row&&records.some(r=>r.id===row.id&&r.revision!==row.revision)&&<p className="source-error">电脑上的来源已更新。当前编辑内容保留，请先下载或重新载入已保存版本。</p>}
      {trashed&&row?<><h3>{row.title}</h3><p className="source-body">{row.summary||row.analysis}</p><SourceFacts row={row}/><div className="source-actions"><button disabled={busy} className="source-primary" onClick={()=>void run(()=>trash(row,false))}>恢复来源</button><button disabled={busy} className="source-danger" onClick={()=>void run(erase)}>永久删除</button></div></>:<>
       <form onSubmit={e=>{e.preventDefault();void run(save);}}>
        <SourceFields form={editor.form} onChange={form=>{setEditor({...editor,form});setAck(false);}} disabled={busy} kind={row?.kind||'reference'}/>
@@ -139,7 +150,7 @@ export default function Sources(){
     </section>}
    </div>}
    {editor&&!connected&&<section className="source-detached"><p>当前编辑内容仍在。请连接来源库后继续保存。</p><button onClick={()=>saveDownload('拾页-来源编辑内容.json',{format:'shiye-source-draft',version:1,draft:fromSourceForm(editor.form,editor.row),reviewNote:note})}>下载当前编辑内容</button></section>}
-   <section className="source-backup" aria-label="来源备份"><div><Download size={23}/><h2>把来源也备一份</h2></div><p>来源备份与随心记、作品备份分开。恢复时合并新增来源，已有链接跳过；新增内容需要重新审核。</p><div className="source-actions"><button disabled={busy||!connected} onClick={()=>void run(async()=>{const data=await api<SourceBackup>('backup');saveDownload('拾页-来源备份-'+new Date().toISOString().slice(0,10)+'.json',data);setMessage('来源备份已生成，请在浏览器下载中确认保存。');})}>下载来源备份</button><label className="source-upload">选择来源备份<input type="file" aria-label="恢复来源备份" accept=".json,application/json" disabled={busy||loading||!connected&&!status?.canRecover} onChange={e=>{const file=e.target.files?.[0];e.target.value='';if(file)void run(()=>readBackup(file));}}/></label></div>
+   <section className="source-backup" aria-label="来源备份"><div><Download size={23}/><h2>把来源也备一份</h2></div><p>来源备份保存出处、分析与审核信息，与随心记、作品备份分开。恢复时合并新增来源，已有链接跳过；素材图片需重新核验，新增内容需要重新审核。</p><div className="source-actions"><button disabled={busy||!connected} onClick={()=>void run(async()=>{const data=await api<SourceBackup>('backup');saveDownload('拾页-来源备份-'+new Date().toISOString().slice(0,10)+'.json',data);setMessage('来源备份已生成，请在浏览器下载中确认保存。');})}>下载来源备份</button><label className="source-upload">选择来源备份<input type="file" aria-label="恢复来源备份" accept=".json,application/json" disabled={busy||loading||!connected&&!status?.canRecover} onChange={e=>{const file=e.target.files?.[0];e.target.value='';if(file)void run(()=>readBackup(file));}}/></label></div>
     {backup&&<div className="source-import"><p>备份包含 {backup.count} 条来源 · {backup.name}</p>{status?.ready===false&&<label className="source-check"><input type="checkbox" checked={recoveryAck} disabled={busy} onChange={e=>setRecoveryAck(e.target.checked)}/>保留损坏原文件，并从这份备份修复来源库</label>}<div className="source-actions"><button className="source-primary" disabled={busy||!/^\d{8}$/.test(code)||status?.ready===false&&!recoveryAck} onClick={()=>void run(restore)}>{status?.ready===false?'保留原文件并修复':'合并恢复备份'}</button><button disabled={busy} onClick={()=>setBackup(null)}>取消恢复</button></div></div>}
    </section>
    <p className="source-footnote">当前为个人电脑来源库，电脑服务需保持运行。已通过的内容可由连接此服务的设备查看；不要把私密随心记粘贴到这里。</p>
