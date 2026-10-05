@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { createAiHandler } from './ai.mjs';
 import {createVideoService} from './video-jobs.mjs';
 import {createVideoHandler} from './video-api.mjs';
+import {createSourceStore,recoverSourceStore} from './source-store.mjs';
+import {createSourceHandler} from './source-api.mjs';
 const root=resolve(fileURLToPath(new URL('..',import.meta.url)));
 if(existsSync(resolve(root,'.env')))process.loadEnvFile(resolve(root,'.env'));
 const port=Number(process.env.PORT||5173);const production=process.argv.includes('--prod');
@@ -15,6 +17,11 @@ const config={deepseekKey:process.env.DEEPSEEK_API_KEY||'',deepseekModel:process
 const api=createAiHandler(config,pairCode);
 const videoService=await createVideoService({root:resolve(root,'.local/video-jobs',String(port))});
 const videoApi=createVideoHandler(videoService,pairCode);
+const sourceRoot=resolve(root,'.local/source-catalog',String(port));
+let sourceStore=null;
+try{sourceStore=await createSourceStore({root:sourceRoot});}
+catch{console.error('来源库暂时无法读取，原文件保留。可在“我的 → 来源与审核”使用备份修复，其他功能仍可使用。');}
+const sourceApi=createSourceHandler(sourceStore,pairCode,{recover:bundle=>recoverSourceStore({root:sourceRoot,bundle})});
 const localIps=Object.values(networkInterfaces()).flat().filter(x=>x?.family==='IPv4'&&!x.internal).map(x=>x.address);
 const hosts=new Set(['localhost','127.0.0.1',...localIps]);
 const vite=production?null:await(await import('vite')).createServer({root,server:{middlewareMode:true,host:'0.0.0.0',hmr:false,watch:{ignored:['**/artifacts/**','**/.local/**','**/releases/**','**/docs/**','**/tests/**','**/.env*']}},appType:'spa'});
@@ -26,6 +33,7 @@ const server=createServer(async(req,res)=>{
   if(!hosts.has(hostname)){res.writeHead(403);res.end('Host not allowed');return;}
   res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','same-origin');
   try{const parts=decodeURIComponent(new URL(req.url,'http://localhost').pathname).replace(/\\/g,'/').toLowerCase().split('/');if(parts.includes('.local')){res.writeHead(403);res.end('Private runtime path');return;}}catch{res.writeHead(400);res.end('Bad request');return;}
+  if(req.url?.startsWith('/api/sources/')){await sourceApi(req,res);return;}
   if(req.url?.startsWith('/api/video/')){await videoApi(req,res);return;}
   if(req.url?.startsWith('/api/')){await api(req,res);return;}
   if(vite){vite.middlewares(req,res);return;}
