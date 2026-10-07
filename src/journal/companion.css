@@ -8,3 +8,5 @@
 @media(max-width:600px){.companion-hero{gap:9px}.companion-hero h1{font-size:27px}.companion-hero span{font-size:16px}.companion-hero>.paper-spirit{width:112px;height:125px}.companion-looks{grid-template-columns:repeat(2,minmax(0,1fr))}.companion-keepsakes article{padding:16px 12px;gap:10px}.companion-keepsakes h3{font-size:13px}}
 
 .companion-looks .paper-spirit.small{width:72px;height:80px}.companion-looks small{font-size:11px}.companion-page>.journal-container>.journal-memory-link{margin-top:28px}
+
+.companion-page .journal-actions .journal-primary{background:#426e5e;border-color:#426e5e;color:#fff}

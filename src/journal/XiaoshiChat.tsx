@@ -1,3 +1,4 @@
+import type {Appearance} from './companion-profile.ts';
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {Modal} from '../components/Modal.tsx';
 import {AssetThumb} from '../studio/MediaPanel.tsx';
@@ -7,7 +8,7 @@ import type {JournalEntry} from './model.ts';
 import {PaperSpirit} from './Xiaoshi.tsx';
 import {download} from '../core/export.ts';
 export interface ChatMessage{role:'user'|'assistant';content:string}
-export function XiaoshiChat({entries,assets,messages,onMessages,onClose,onKeep,onCreate,createLabel='带到创作工作台',createLimit=20000}:{createLabel?:string;createLimit?:number;entries:JournalEntry[];assets:MediaAsset[];messages:ChatMessage[];onMessages:(m:ChatMessage[])=>void;onClose:()=>void;onKeep:(text:string)=>Promise<void>;onCreate:(text:string)=>void}){
+export function XiaoshiChat({appearance='leaf',entries,assets,messages,onMessages,onClose,onKeep,onCreate,createLabel='带到创作工作台',createLimit=20000}:{appearance?:Appearance;createLabel?:string;createLimit?:number;entries:JournalEntry[];assets:MediaAsset[];messages:ChatMessage[];onMessages:(m:ChatMessage[])=>void;onClose:()=>void;onKeep:(text:string)=>Promise<void>;onCreate:(text:string)=>void}){
  const [input,setInput]=useState(''),[code,setCode]=useState(()=>{try{return sessionStorage.getItem('shiye:storyboard:code')||'';}catch{return '';}}),[busy,setBusy]=useState(false),[error,setError]=useState(''),[ready,setReady]=useState(false);
  const [saved,setSaved]=useState<string[]>([]),[notice,setNotice]=useState('');
  const [selected,setSelected]=useState<string[]>([]),[photos,setPhotos]=useState<string[]>([]),[search,setSearch]=useState('');
@@ -33,7 +34,7 @@ export function XiaoshiChat({entries,assets,messages,onMessages,onClose,onKeep,o
  function close(){if(input.trim()&&!confirm('关闭会丢弃输入框中尚未发送的文字，已完成对话暂存在当前页面。确定关闭？'))return;controller.current?.abort();onClose();}
  async function keep(text:string){setBusy(true);setError('');try{await onKeep(text);setSaved(old=>[...old,text]);setNotice('这段灵感已存入随心记，标明了 AI 来源。');}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
  return <Modal title="和小拾聊聊" onClose={close} wide>
-  <div className="xiaoshi-chat-intro"><PaperSpirit small mood={busy?'thinking':'idle'}/><p>我是你的 AI 创作伙伴。先聊一个真实细节，再慢慢把它写成自己的表达。</p></div>
+  <div className="xiaoshi-chat-intro"><PaperSpirit appearance={appearance} small mood={busy?'thinking':'idle'}/><p>我是你的 AI 创作伙伴。先聊一个真实细节，再慢慢把它写成自己的表达。</p></div>
   <p className="journal-small">每次发送最近 {history.length} 条会话、输入框内容，以及你勾选的记录和照片。未勾选的随心记不会发送；不包含私藏标签。使用 DeepSeek 按量计费。</p>
   <details className="xiaoshi-context"><summary>为这次聊天选素材 · {records.length} 条记录 / {photos.length} 张照片</summary>
    <label className="journal-search"><input aria-label="搜索聊天素材" value={search} disabled={busy} onChange={e=>setSearch(e.target.value)} placeholder="搜索要聊的记录"/></label>

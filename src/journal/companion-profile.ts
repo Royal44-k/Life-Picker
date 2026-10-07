@@ -33,8 +33,8 @@ export function advanceCompanion(profile:CompanionProfile,progress:CompanionProg
  return {...profile,earned:KEEPSAKES.map(k=>k.id).filter(id=>earned.has(id)),revision:profile.revision+1,updatedAt:Date.now()};
 }
 export function progressFromRecords(entries:JournalEntry[],memories:MemoryAlbum[]):CompanionProgress{
- const saved=entries.map(validateEntry).filter(e=>e.revision>0&&!e.trashedAt&&(e.text.trim()||e.assetIds.length));
- return {pages:saved.length,quotes:saved.reduce((n,e)=>n+(e.quotes?.length||0),0),memories:memories.map(validateMemory).filter(m=>m.revision>0&&!m.trashedAt).length};
+ const saved=entries.map(validateEntry).filter(e=>e.revision>0&&!e.trashedAt);
+ return {pages:saved.filter(e=>e.text.trim()||e.assetIds.length).length,quotes:saved.reduce((n,e)=>n+(e.quotes?.length||0),0),memories:memories.map(validateMemory).filter(m=>m.revision>0&&!m.trashedAt).length};
 }
 export function mergeCompanion(current:CompanionProfile,incoming:CompanionProfile):CompanionProfile{
  const local=validateCompanion(current),restored=validateCompanion(incoming),earned=new Set([...local.earned,...restored.earned]);

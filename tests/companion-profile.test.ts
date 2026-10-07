@@ -37,3 +37,11 @@ test('完整记录备份往返小拾资料，旧备份仍可读，恢复不带�
  const restored=restoreJournalIdentity(parsed);assert.deepEqual(restored.companion,profile);assert.notEqual(restored.entries[0].id,e.id);
  const old=await makeJournalBundle([e],[],async()=>undefined);assert.equal(readJournalBundle(new Uint8Array(await old.arrayBuffer())).companion,undefined);
 });
+
+test('旧版本留下的原话在原文清空后仍计算成长，页数与原话分别统计',async()=>{
+ const quoted=addQuote(entry(),'自己留下的经历'),blank={...quoted,text:'',assetIds:[]};
+ const bundle=await makeJournalBundle([blank],[],async()=>undefined),restored=restoreJournalIdentity(readJournalBundle(new Uint8Array(await bundle.arrayBuffer())));
+ assert.equal(restored.companion,undefined);const progress=progressFromRecords(restored.entries,[]);
+ assert.deepEqual(progress,{pages:0,quotes:1,memories:0});const profile=advanceCompanion(defaultCompanion(),progress);assert.equal(appearanceAvailable(profile,'blossom'),true);
+ assert.deepEqual(progressFromRecords([{...blank,trashedAt:1}],[]),{pages:0,quotes:0,memories:0});
+});
