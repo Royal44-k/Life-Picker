@@ -1,5 +1,5 @@
 import {chromium} from 'playwright';import assert from 'node:assert/strict';
-const browser=await chromium.launch({channel:'msedge',headless:true});try{const page=await browser.newPage();await page.goto('http://localhost:5173/');const exists=await page.evaluate(async()=>(await fetch('/src/series/database.ts')).status);assert.equal(exists,200,'series persistence module must be available');
+const browser=await chromium.launch({channel:'msedge',headless:true});try{const page=await browser.newPage();await page.goto((process.env.TEST_URL||'http://localhost:5173')+'/');const exists=await page.evaluate(async()=>(await fetch('/src/series/database.ts')).status);assert.equal(exists,200,'series persistence module must be available');
  const result=await page.evaluate(async()=>{
   const db=await import('/src/series/database.ts'),m=await import('/src/series/model.ts'),backup=await import('/src/series/backup.ts'),works=await import('/src/studio/database.ts');
   function ok(v,label){if(!v)throw new Error(label);}async function rejects(fn,label){let failed=false;try{await fn();}catch{failed=true;}ok(failed,label);}

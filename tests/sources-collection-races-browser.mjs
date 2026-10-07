@@ -11,7 +11,7 @@ const browser=await chromium.launch({channel:'msedge',headless:true});
 try{
  const page=await browser.newPage({viewport:{width:1200,height:920}});page.setDefaultTimeout(6000);
  await page.route('**/api/sources/**',async route=>{const request=route.request(),url=new URL(request.url()),headers={...request.headers(),origin:api};delete headers.host;const response=await route.fetch({url:api+url.pathname,headers});if(request.method()==='PUT'&&url.pathname.endsWith('/records/'+original.id)){putArrived=true;await putGate;}await route.fulfill({response});});
- await page.goto('http://localhost:5173/?view=sources');await page.getByLabel('电脑连接码').fill('12345678');await page.getByRole('button',{name:'连接来源库',exact:true}).click();
+ await page.goto((process.env.TEST_URL||'http://localhost:5173')+'/?view=sources');await page.getByLabel('电脑连接码').fill('12345678');await page.getByRole('button',{name:'连接来源库',exact:true}).click();
  const panel=page.getByRole('region',{name:'公开素材检查'});await panel.getByRole('button',{name:'检查公开素材更新',exact:true}).click();await panel.getByText('正在核验公开素材',{exact:true}).waitFor();
  await page.getByRole('button',{name:'查看来源：并发素材 0',exact:true}).click();await page.getByLabel('自己的概括',{exact:true}).fill('这份修改必须保存，同时还要看到新素材');await page.getByRole('button',{name:'保存修改并重新审核',exact:true}).click();
  const end=Date.now()+5000;while(!putArrived&&Date.now()<end)await new Promise(r=>setTimeout(r,20));assert.equal(putArrived,true);

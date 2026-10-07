@@ -1,3 +1,6 @@
+import {validateCapturedDate} from '../studio/photo-date.ts';
+import {COMPANION_KEY} from './companion-store.ts';
+import {defaultCompanion,validateCompanion,mergeCompanion} from './companion-profile.ts';
 import {loadImage} from '../studio/media.ts';
 import {openDB,finish} from '../studio/database.ts';
 import {validateEntry,validateMemory} from './model.ts';
@@ -42,14 +45,15 @@ export const restoreMemory=(id:string,expected:number)=>trash('memories',id,expe
 export const deleteMemory=(id:string,expected:number)=>remove('memories',id,expected);
 
 export async function importJournalData(bundle:import('./backup.ts').JournalBundle):Promise<void>{
- const entries=bundle.entries.map(validateEntry),memories=bundle.memories.map(validateMemory);
+ const entries=bundle.entries.map(validateEntry),memories=bundle.memories.map(validateMemory),companion=bundle.companion===undefined?undefined:validateCompanion(bundle.companion);
  if(entries.length>200||memories.length>50||bundle.assets.length>100)throw new Error('备份条目过多，请分批恢复。');
  const photos=new Set(bundle.assets.map(a=>a.id));
  if([...entries.flatMap(e=>e.assetIds),...memories.flatMap(m=>m.items.flatMap(i=>i.assetIds))].some(id=>!photos.has(id)))throw new Error('恢复的记录缺少照片。');
- for(const asset of bundle.assets){const decoded=await loadImage(asset.blob);if(decoded.naturalWidth!==asset.width||decoded.naturalHeight!==asset.height)throw new Error('照片尺寸不一致，未恢复任何记录。');}
- const db=await openDB(),tx=db.transaction(['journals','memories','assets'],'readwrite');let conflict=false;
+ for(const asset of bundle.assets){validateCapturedDate(asset.capturedDate);const decoded=await loadImage(asset.blob);if(decoded.naturalWidth!==asset.width||decoded.naturalHeight!==asset.height)throw new Error('照片尺寸不一致，未恢复任何记录。');}
+ const db=await openDB(),tx=db.transaction(['journals','memories','assets','meta'],'readwrite');let conflict=false,profileError='';
+ if(companion)tx.objectStore('meta').get(COMPANION_KEY).onsuccess=e=>{try{const row=(e.target as IDBRequest).result,current=row?validateCompanion(row.profile):defaultCompanion();tx.objectStore('meta').put({id:COMPANION_KEY,profile:mergeCompanion(current,companion)});}catch(e){profileError=(e as Error).message;tx.abort();}};
  for(const [name,rows] of [['journals',entries],['memories',memories],['assets',bundle.assets]] as const){
   const ids=new Set<string>();for(const row of rows){if(ids.has(row.id)){conflict=true;tx.abort();break;}ids.add(row.id);const store=tx.objectStore(name);store.get(row.id).onsuccess=e=>{if((e.target as IDBRequest).result){conflict=true;tx.abort();return;}store.put(row);};}if(conflict)break;
  }
- try{await finish(db,tx,()=>undefined);}catch(e){if(conflict)throw new Error('恢复内容与已有记录冲突，未写入；请重新读取备份。');throw e;}
+ try{await finish(db,tx,()=>undefined);}catch(e){if(profileError)throw new Error(profileError);if(conflict)throw new Error('恢复内容与已有记录冲突，未写入；请重新读取备份。');throw e;}
 }

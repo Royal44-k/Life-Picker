@@ -1,7 +1,7 @@
 {
   "name": "shiye-card-studio",
   "private": true,
-  "version": "1.4.0",
+  "version": "1.5.0",
   "type": "module",
   "scripts": {
     "dev": "node --use-env-proxy server/index.mjs",
@@ -9,7 +9,7 @@
     "build": "tsc -b && vite build && node scripts/build-sw.mjs",
     "assets": "node scripts/make-assets.mjs",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node --experimental-strip-types --test tests/quotes.test.ts tests/usage-store.test.mjs tests/usage-api.test.mjs tests/series-publication.test.ts tests/source-credit.test.ts tests/inspiration-origin.test.ts tests/inspiration-api.test.mjs tests/sources-model.test.mjs tests/sources-store.test.mjs tests/sources-api.test.mjs tests/sources-request.test.ts tests/sources-assets.test.mjs tests/sources-jobs.test.mjs tests/sources-collection-api.test.mjs tests/checked-zip.test.ts tests/video-audio.test.mjs tests/video-api.test.mjs tests/video-jobs.test.mjs tests/video-render.test.mjs tests/memory-selection.test.ts tests/chat.test.mjs tests/companion.test.ts tests/journal-backup.test.ts tests/journal.test.ts tests/page-ai.test.mjs tests/page-ai.test.ts tests/templates.test.ts tests/content.test.ts tests/core.test.ts tests/ai.test.mjs tests/story.test.ts tests/backup.test.ts tests/storyboard.test.mjs",
+    "test": "node --experimental-strip-types --test tests/companion-profile.test.ts tests/photo-date.test.ts tests/quotes.test.ts tests/usage-store.test.mjs tests/usage-api.test.mjs tests/series-publication.test.ts tests/source-credit.test.ts tests/inspiration-origin.test.ts tests/inspiration-api.test.mjs tests/sources-model.test.mjs tests/sources-store.test.mjs tests/sources-api.test.mjs tests/sources-request.test.ts tests/sources-assets.test.mjs tests/sources-jobs.test.mjs tests/sources-collection-api.test.mjs tests/checked-zip.test.ts tests/video-audio.test.mjs tests/video-api.test.mjs tests/video-jobs.test.mjs tests/video-render.test.mjs tests/memory-selection.test.ts tests/chat.test.mjs tests/companion.test.ts tests/journal-backup.test.ts tests/journal.test.ts tests/page-ai.test.mjs tests/page-ai.test.ts tests/templates.test.ts tests/content.test.ts tests/core.test.ts tests/ai.test.mjs tests/story.test.ts tests/backup.test.ts tests/storyboard.test.mjs",
     "test:sources": "node --experimental-strip-types --test tests/series-publication.test.ts tests/source-credit.test.ts tests/inspiration-origin.test.ts tests/inspiration-api.test.mjs tests/sources-model.test.mjs tests/sources-store.test.mjs tests/sources-api.test.mjs tests/sources-request.test.ts tests/sources-assets.test.mjs tests/sources-jobs.test.mjs tests/sources-collection-api.test.mjs",
     "test:sources:browser": "node tests/sources-browser.mjs && node tests/sources-errors-browser.mjs && node tests/sources-collection-browser.mjs && node tests/sources-collection-races-browser.mjs",
     "test:usage": "node tests/usage-browser.mjs",
@@ -17,28 +17,30 @@
     "test:inspiration:offline": "node --experimental-strip-types tests/inspiration-offline-browser.mjs",
     "test:inspiration": "node tests/inspiration-material-browser.mjs && node tests/inspiration-ai-browser.mjs",
     "test:navigation": "node tests/navigation-browser.mjs && node tests/navigation-errors-browser.mjs",
-    "test:e2e": "npm run test:navigation && npm run test:sources:browser && npm run test:inspiration && npm run test:series && npm run test:usage && node tests/browser.mjs && npm run test:studio && npm run test:journal && npm run test:memory && npm run test:video:browser && npm run test:quotes",
+    "test:e2e": "npm run test:navigation && npm run test:sources:browser && npm run test:inspiration && npm run test:series && npm run test:usage && node tests/browser.mjs && npm run test:studio && npm run test:journal && npm run test:memory && npm run test:video:browser && npm run test:quotes && npm run test:companion:final",
     "test:video:browser": "node tests/video-lifecycle-browser.mjs && node tests/video-browser.mjs && node tests/video-errors-browser.mjs && node tests/video-cancel-browser.mjs",
     "test:video": "node tests/video-render-real.mjs && node tests/video-long-real.mjs && node tests/video-private-paths.mjs",
     "test:memory": "node tests/memory-browser.mjs && node tests/memory-errors-browser.mjs",
     "test:journal": "node tests/journal-browser.mjs && node tests/journal-errors-browser.mjs && node tests/companion-browser.mjs",
-    "test:pwa": "node tests/pwa-navigation.mjs && node tests/pwa-sources.mjs && node tests/usage-offline-browser.mjs && node tests/series-offline-browser.mjs && node tests/pwa-studio.mjs && node tests/pwa-journal.mjs && node tests/pwa-memory.mjs && npm run test:quotes:offline",
+    "test:pwa": "node tests/pwa-navigation.mjs && node tests/pwa-sources.mjs && node tests/usage-offline-browser.mjs && node tests/series-offline-browser.mjs && node tests/pwa-studio.mjs && node tests/pwa-journal.mjs && node tests/pwa-memory.mjs && npm run test:quotes:offline && node tests/pwa-companion.mjs",
     "test:studio": "node tests/studio-browser.mjs && node tests/studio-ai-browser.mjs && node tests/studio-invalid-edit.mjs && node tests/user-feedback-browser.mjs && node tests/templates-page-ai-browser.mjs && node tests/template-photo-paint.mjs",
-    "test:storage": "node tests/studio-storage.mjs && node tests/studio-migration.mjs && node tests/media-lifecycle.mjs && node tests/journal-storage.mjs && node tests/journal-migration.mjs && node tests/journal-backup-browser.mjs && node tests/journal-restore-flow.mjs && node tests/memory-storage.mjs",
+    "test:storage": "node tests/studio-storage.mjs && node tests/studio-migration.mjs && node tests/media-lifecycle.mjs && node tests/journal-storage.mjs && node tests/journal-migration.mjs && node tests/journal-backup-browser.mjs && node tests/journal-restore-flow.mjs && node tests/memory-storage.mjs && node tests/companion-storage.mjs",
     "test:quotes": "node tests/quotes-browser.mjs && node tests/quotes-errors-browser.mjs && node tests/quotes-navigation-browser.mjs && node tests/quotes-capture-conflict-browser.mjs",
-    "test:quotes:offline": "node tests/pwa-quotes.mjs"
+    "test:quotes:offline": "node tests/pwa-quotes.mjs",
+    "test:companion:final": "node tests/companion-growth-browser.mjs && node tests/companion-errors-browser.mjs && node tests/photo-date-browser.mjs"
   },
   "dependencies": {
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
+    "exifr": "7.1.3",
+    "fflate": "^0.8.2",
     "lucide-react": "^0.577.0",
-    "fflate": "^0.8.2"
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "playwright": "^1.61.1",
     "typescript": "^6.0.3",
-    "vite": "^8.1.3",
-    "playwright": "^1.61.1"
+    "vite": "^8.1.3"
   }
 }

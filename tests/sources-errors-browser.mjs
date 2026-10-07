@@ -16,7 +16,7 @@ const browser=await chromium.launch({channel:'msedge',headless:true});
 async function page(){
  const page=await browser.newPage({viewport:{width:390,height:844}});page.setDefaultTimeout(6000);
  await page.route('**/api/sources/**',async route=>{const url=new URL(route.request().url()),headers={...route.request().headers(),origin:api};delete headers.host;const response=await route.fetch({url:api+url.pathname,headers});await route.fulfill({response});});
- await page.goto('http://localhost:5173/?view=sources');return page;
+ await page.goto((process.env.TEST_URL||'http://localhost:5173')+'/?view=sources');return page;
 }
 try{
  const first=await page();await first.getByLabel('电脑连接码').fill('12345678');await first.getByRole('button',{name:'连接来源库',exact:true}).click();

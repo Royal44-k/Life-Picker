@@ -2,7 +2,7 @@ import {chromium} from 'playwright';import assert from 'node:assert/strict';
 const browser=await chromium.launch({channel:'msedge',headless:true});
 try{
  const context=await browser.newContext({viewport:{width:390,height:844}}),page=await context.newPage();page.setDefaultTimeout(9000);
- await page.goto('http://localhost:5181/?view=sources');await page.getByRole('heading',{name:'把启发，连同出处收好。'}).waitFor();
+ await page.goto((process.env.TEST_URL||'http://localhost:5181')+'/?view=sources');await page.getByRole('heading',{name:'把启发，连同出处收好。'}).waitFor();
  await page.evaluate(async()=>{await navigator.serviceWorker.ready;});
  await page.reload();await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
  await context.setOffline(true);await page.reload();

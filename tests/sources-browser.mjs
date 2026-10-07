@@ -15,7 +15,7 @@ const browser=await chromium.launch({channel:'msedge',headless:true});
 try{
  const page=await browser.newPage({viewport:{width:390,height:844}}),errors=[];page.setDefaultTimeout(6000);page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/api/sources/**',async route=>{const url=new URL(route.request().url()),headers={...route.request().headers(),origin:api};delete headers.host;const response=await route.fetch({url:api+url.pathname,headers});await route.fulfill({response});});
- await page.goto('http://localhost:5173/?view=mine');
+ await page.goto((process.env.TEST_URL||'http://localhost:5173')+'/?view=mine');
  await page.getByRole('link',{name:/来源与审核/}).click();
  await page.getByRole('heading',{name:'把启发，连同出处收好。'}).waitFor();
  await page.getByLabel('电脑连接码').fill('12345678');await page.getByRole('button',{name:'连接来源库',exact:true}).click();

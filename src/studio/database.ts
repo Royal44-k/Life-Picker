@@ -1,3 +1,4 @@
+import {validateCapturedDate} from './photo-date.ts';
 import type {Story,MediaAsset} from './model.ts';
 import {validateStory} from './backup.ts';
 import {loadDrafts} from '../core/storage.ts';
@@ -35,6 +36,7 @@ export async function saveStory(story:Story,expected:number):Promise<number>{
 export async function getAsset(id:string):Promise<MediaAsset|undefined>{const db=await openDB();const tx=db.transaction('assets');let a:MediaAsset|undefined;tx.objectStore('assets').get(id).onsuccess=e=>{a=(e.target as IDBRequest).result;};return finish(db,tx,()=>a);}
 export async function listAssets(includeTrashed=false):Promise<MediaAsset[]>{const db=await openDB();const tx=db.transaction('assets');let a:MediaAsset[]=[];tx.objectStore('assets').getAll().onsuccess=e=>{a=(e.target as IDBRequest).result;};return finish(db,tx,()=>a.filter(asset=>includeTrashed||!asset.trashedAt).sort((a,b)=>b.createdAt-a.createdAt));}
 export async function putAsset(asset:MediaAsset):Promise<void>{
+ validateCapturedDate(asset.capturedDate);
  const db=await openDB();const tx=db.transaction('assets','readwrite');const store=tx.objectStore('assets');let full=false;
  store.get(asset.id).onsuccess=e=>{
   if((e.target as IDBRequest).result){store.put(asset);return;}
@@ -43,6 +45,7 @@ export async function putAsset(asset:MediaAsset):Promise<void>{
  try{await finish(db,tx,()=>undefined);}catch(e){if(full)throw new Error('本机照片已达 100 张（含回收站）。请在回收站永久删除未使用的照片后再添加；已有作品保留。');throw e;}
 }
 export async function importStory(story:Story,assets:MediaAsset[]):Promise<void>{
+ for(const asset of assets)validateCapturedDate(asset.capturedDate);
  story=validateStory(story);const db=await openDB();const tx=db.transaction(['stories','assets'],'readwrite');
  const s=tx.objectStore('stories');s.get(story.id).onsuccess=e=>{if((e.target as IDBRequest).result){tx.abort();return;}s.put(story);for(const a of assets)tx.objectStore('assets').put(a);};
  return finish(db,tx,()=>undefined);

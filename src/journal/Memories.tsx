@@ -1,3 +1,4 @@
+import {useCompanion} from './useCompanion.ts';
 import {BottomNav} from '../hub/BottomNav.tsx';
 import {useEffect,useRef,useState} from 'react';
 import {ArrowLeft,Plus,Archive,BookOpen,Trash2,LockKeyhole,Unlock,ArrowUp,ArrowDown,RotateCcw,X,Download} from 'lucide-react';
@@ -7,7 +8,7 @@ import {getAsset,listAssets,saveStory} from '../studio/database.ts';
 import type {MediaAsset} from '../studio/model.ts';
 import {DEFAULT_OPTIONS} from '../core/layout.ts';
 import {download,safeName} from '../core/export.ts';
-import {newEntry,newMemory,validateMemory,memoryToStory} from './model.ts';
+import {newEntry,newMemory,validateMemory,memoryToStory,validDate} from './model.ts';
 import type {JournalEntry,MemoryAlbum,MemoryItem} from './model.ts';
 import {listEntries,listMemories,saveMemory,trashMemory,restoreMemory,deleteMemory,saveEntry} from './database.ts';
 import {makeJournalBundle} from './backup.ts';
@@ -24,11 +25,13 @@ const titleOf=(e:JournalEntry)=>e.text.trim().split('\n')[0].slice(0,65)||'照�
 export const MEMORY_OPTIONS={...DEFAULT_OPTIONS,theme:'forest' as const,series:'我的回忆'};
 export default function Memories(){
  const leaving=useRef(false);
+ const [initialRange]=useState(()=>{const query=new URLSearchParams(location.search),date=query.get('anchor'),period=query.get('period');const kind:'week'|'month'|'year'=period==='week'||period==='year'?period:'month';const valid=validDate(date);return {anchor:valid?date:today(),kind,pick:valid&&['week','month','year'].includes(period||'')};});
  const [entries,setEntries]=useState<JournalEntry[]>([]),[albums,setAlbums]=useState<MemoryAlbum[]>([]),[assets,setAssets]=useState<MediaAsset[]>([]);
- const [screen,setScreen]=useState<'list'|'pick'|'album'>('list'),[rangeType,setRangeType]=useState<'week'|'month'|'year'|'custom'>('month'),[anchor,setAnchor]=useState(today()),[range,setRange]=useState(()=>memoryRange('month',today())),[count,setCount]=useState(6);
+ const [screen,setScreen]=useState<'list'|'pick'|'album'>(initialRange.pick?'pick':'list'),[rangeType,setRangeType]=useState<'week'|'month'|'year'|'custom'>(initialRange.kind),[anchor,setAnchor]=useState(initialRange.anchor),[range,setRange]=useState(()=>memoryRange(initialRange.kind,initialRange.anchor)),[count,setCount]=useState(6);
  const [picks,setPicks]=useState<JournalEntry[]>([]),[locked,setLocked]=useState<string[]>([]),[excluded,setExcluded]=useState<string[]>([]),[sampled,setSampled]=useState(false);
  const [album,setAlbum]=useState<MemoryAlbum|null>(null),[dirty,setDirty]=useState(false),[undo,setUndo]=useState<MemoryAlbum|null>(null),[recycleUndo,setRecycleUndo]=useState<{id:string;revision:number}|null>(null);
  const [busy,setBusy]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[modal,setModal]=useState<'trash'|'export'|'public'|'chat'|'video'|null>(null),[publicCopy,setPublicCopy]=useState<MemoryAlbum|null>(null),[messages,setMessages]=useState<ChatMessage[]>([]);
+ useCompanion(albums.filter(m=>m.revision>0&&!m.trashedAt).map(m=>m.id).join('|'));
  const pool=entries.filter(e=>!e.trashedAt&&e.date>=range.start&&e.date<=range.end&&(e.text.trim()||e.assetIds.length));
  async function refresh(){const [es,ms,photos]=await Promise.all([listEntries(true),listMemories(true),listAssets(true)]);setEntries(es);setAlbums(ms);setAssets(photos);}
  useEffect(()=>{void refresh().catch(e=>setError(e.message));},[]);

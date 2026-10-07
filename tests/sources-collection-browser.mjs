@@ -10,7 +10,7 @@ const browser=await chromium.launch({channel:'msedge',headless:true});
 try{
  const page=await browser.newPage({viewport:{width:390,height:844}}),errors=[];page.setDefaultTimeout(8000);page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/api/sources/**',async route=>{const url=new URL(route.request().url()),headers={...route.request().headers(),origin:api};delete headers.host;const response=await route.fetch({url:api+url.pathname,headers});await route.fulfill({response});});
- await page.goto('http://localhost:5173/?view=sources');await page.getByLabel('电脑连接码').fill('12345678');await page.getByRole('button',{name:'连接来源库',exact:true}).click();
+ await page.goto((process.env.TEST_URL||'http://localhost:5173')+'/?view=sources');await page.getByLabel('电脑连接码').fill('12345678');await page.getByRole('button',{name:'连接来源库',exact:true}).click();
  const panel=page.getByRole('region',{name:'公开素材检查'});await panel.waitFor();await panel.getByRole('button',{name:'检查公开素材更新',exact:true}).click();await panel.getByText('正在核验公开素材',{exact:true}).waitFor();assert.equal(jobs.status().running,true);release();
  await panel.getByText('部分完成',{exact:true}).waitFor();await panel.getByText('新增 1 · 更新 0 · 已有 0 · 略过 0 · 失败 1',{exact:true}).waitFor();
  await page.getByRole('button',{name:'查看来源：核验后的第一张插画',exact:true}).click();
