@@ -1,0 +1,31 @@
+.quotes-container{padding-bottom:220px}
+.quotes-lead{font:500 21px/1.8 "Songti SC","SimSun",serif;letter-spacing:.5px;margin:0 0 26px;color:#466355}
+.quotes-help{font-size:12px;line-height:1.9;color:#6e7f73;margin:14px 0;overflow-wrap:anywhere}
+.quotes-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:24px 0}
+.quote-card{border:1px solid #dde6de;background:#fff;border-radius:12px;overflow:hidden;min-width:0;transition:border-color .15s}
+.quote-card.is-selected{border-color:#426e5e;box-shadow:inset 3px 0 #426e5e}
+.quote-card-top{display:flex;align-items:center;justify-content:space-between;padding:9px 14px 0 22px;color:#738879;font-size:12px}
+.quote-card-top button{display:grid;place-items:center;min-width:44px;min-height:44px}
+.quote-pick{display:block;width:100%;text-align:left;padding:0 24px 18px}
+.quote-mark{font:42px/1 Georgia,serif;color:#a0b7a6;display:block;height:27px}
+.quote-pick p{font:500 19px/1.95 "Songti SC","SimSun",serif;color:#304b41;white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0 20px}
+.quote-check{display:flex;align-items:center;gap:8px;font-size:12px;color:#426e5e}
+.quote-check>span{width:16px;height:16px;border:1px solid #a5b7aa;border-radius:4px}
+.quote-changed{font-size:11px;line-height:1.7;color:#8b775c;padding:0 24px 16px;margin:0}
+.quote-source{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid #e8ede7;padding:14px 22px;color:#627e6c;font-size:11px;min-height:44px;text-decoration:none;background:#fafcf9}
+.quote-source span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}.quote-source svg{flex-shrink:0}
+.quotes-compose-bar{position:fixed;bottom:calc(64px + env(safe-area-inset-bottom));left:0;right:0;z-index:20;display:flex;align-items:center;gap:18px;flex-wrap:wrap;background:#f7faf7f5;border-top:1px solid #d8e3da;padding:15px max(22px,calc((100vw - 828px)/2));backdrop-filter:blur(12px)}
+.quotes-compose-bar>div{flex:1;min-width:100px}.quotes-compose-bar strong{display:block;font-size:13px}.quotes-compose-bar small{display:block;font-size:10px;line-height:1.7;color:#768976;margin-top:6px}
+.quotes-clear{color:#637d68;text-decoration:underline;font-size:12px;min-height:44px;padding:8px}
+.quotes-field{display:flex;flex-direction:column;gap:10px;font-size:12px;color:#526b5b;margin:16px 0}
+.quotes-field textarea{width:100%;padding:14px;font:16px/1.9 "PingFang SC","Microsoft YaHei",sans-serif;border:1px solid #d8e3d9;border-radius:10px;background:#fbfdf9;resize:vertical;color:#314c3e}
+.quote-selection{border-left:3px solid #809b85;background:#f3f7f0;padding:16px;margin:20px 0}
+.quote-selection>span{font-size:11px;color:#71876f}.quote-selection>p{font-size:15px;line-height:1.9;white-space:pre-wrap;overflow-wrap:anywhere;margin:10px 0 0;color:#365640}
+.quotes-wide{width:100%}.quote-suggestions summary{font-size:13px;color:#4e6954;cursor:pointer;padding:12px 0}.quote-suggestions summary span{font-size:10px;color:#7a8a78;margin-left:8px}
+.quote-suggestions>div{display:flex;flex-direction:column;max-height:230px;overflow:auto;gap:8px;padding:3px}
+.quote-suggestions button{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 14px;border:1px solid #e0e8dc;background:#fff;border-radius:8px;font-size:13px;line-height:1.8;text-align:left;min-height:44px;overflow-wrap:anywhere;color:#536c55}
+.quote-suggestions button span{min-width:0}.quote-suggestions button svg{flex-shrink:0}.quote-suggestions button[aria-pressed=true]{border-color:#64806a;background:#eff5ec}
+.journal-quote-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:16px 0;border-bottom:1px solid #edf0e8}
+.journal-quote-actions a{color:#66816b;font-size:12px;min-height:44px;display:flex;align-items:center;gap:5px;text-decoration:none}
+@media(max-width:600px){.quotes-list{grid-template-columns:1fr}.quotes-app .journal-intro{gap:8px}.quotes-app .journal-intro h1{font-size:30px}.quotes-app .journal-secondary{padding:10px 12px}.quotes-compose-bar{gap:10px;padding:12px 20px}.quotes-compose-bar>.quotes-clear{width:100%;min-height:30px;padding:3px}.quotes-lead{font-size:20px}.quote-pick p{font-size:19px}}
+@media(prefers-reduced-motion:reduce){.quote-card{transition:none}}

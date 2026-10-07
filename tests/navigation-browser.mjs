@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 const browser=await chromium.launch({channel:'msedge',headless:true});
 try{
  const page=await browser.newPage({viewport:{width:390,height:844}});const errors=[];page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(7000);
- await page.goto('http://localhost:5173/');await page.getByRole('heading',{name:/让日常，长成\s*自己的作品。/}).waitFor();
+ await page.goto((process.env.TEST_URL||'http://localhost:5173')+'/');await page.getByRole('heading',{name:/让日常，长成\s*自己的作品。/}).waitFor();
  const nav=()=>page.getByRole('navigation',{name:'主要入口'});assert.equal(await nav().getByRole('link').count(),4);assert.equal(await nav().getByRole('link',{name:'首页',exact:true}).getAttribute('aria-current'),'page');
  await page.getByRole('link',{name:'记下此刻',exact:true}).click();await page.getByLabel('随心记文字').fill('只有我记录的细节：清晨巷口的面包香。');await page.getByText('已保存到本机',{exact:true}).waitFor();await page.reload();assert.equal(await page.getByLabel('随心记文字').inputValue(),'只有我记录的细节：清晨巷口的面包香。');await nav().getByRole('link',{name:'首页',exact:true}).click();await page.getByRole('heading',{name:/让日常，长成\s*自己的作品。/}).waitFor();await page.getByRole('link',{name:/只有我记录的细节/}).click();assert.equal(await page.getByLabel('随心记文字').inputValue(),'只有我记录的细节：清晨巷口的面包香。');
  await page.evaluate(()=>{const original=IDBDatabase.prototype.transaction;let fail=true;IDBDatabase.prototype.transaction=function(names,mode,...args){const tx=original.call(this,names,mode,...args);if(fail&&mode==='readwrite'&&[].concat(names).includes('journals')){fail=false;queueMicrotask(()=>tx.abort());}return tx;};});

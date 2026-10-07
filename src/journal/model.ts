@@ -2,19 +2,30 @@ import {makeId} from '../core/storage.ts';
 import type {CardOptions} from '../core/types.ts';
 import type {Story} from '../studio/model.ts';
 import {newPage,planStory} from '../studio/planner.ts';
-export interface JournalEntry{version:1;id:string;revision:number;date:string;text:string;assetIds:string[];tags:string[];starred:boolean;followUpTo?:string;createdAt:number;updatedAt:number;trashedAt?:number}
+export interface JournalQuote{id:string;text:string;sourceDate:string;createdAt:number}
+export interface JournalEntry{version:1;id:string;revision:number;date:string;text:string;assetIds:string[];tags:string[];starred:boolean;quotes?:JournalQuote[];followUpTo?:string;createdAt:number;updatedAt:number;trashedAt?:number}
 export interface MemoryItem{entryId:string;entryRevision:number;date:string;text:string;assetIds:string[]}
 export interface MemoryAlbum{version:1;id:string;revision:number;title:string;intro?:string;items:MemoryItem[];createdAt:number;updatedAt:number;trashedAt?:number}
 const idOK=(v:unknown):v is string=>typeof v==='string'&&/^[\w:-]{1,100}$/.test(v);
 export function validDate(value:unknown):value is string{if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;const date=new Date(value+'T12:00:00Z');return Number.isFinite(date.getTime())&&date.toISOString().slice(0,10)===value;}
 function assetsOK(value:unknown):value is string[]{return Array.isArray(value)&&value.length<=10&&value.every(idOK)&&new Set(value).size===value.length;}
 export function newEntry(date:string):JournalEntry{return {version:1,id:makeId(),revision:0,date,text:'',assetIds:[],tags:[],starred:false,createdAt:Date.now(),updatedAt:Date.now()};}
+export function validateQuote(value:unknown):JournalQuote{
+ const q=value as JournalQuote;
+ if(!q||!idOK(q.id)||typeof q.text!=='string'||!q.text.trim()||q.text.length>500||!validDate(q.sourceDate)||!Number.isFinite(q.createdAt)||q.createdAt<0)throw new Error('原话收藏格式无效：每句最多 500 字符，需保留有效日期和身份。');
+ return {id:q.id,text:q.text,sourceDate:q.sourceDate,createdAt:q.createdAt};
+}
 export function validateEntry(value:unknown):JournalEntry{
  const e=value as JournalEntry;
  if(!e||e.version!==1||!idOK(e.id)||!Number.isInteger(e.revision)||e.revision<0||typeof e.text!=='string'||e.text.length>20000||!assetsOK(e.assetIds)||typeof e.starred!=='boolean'||!Number.isFinite(e.createdAt)||!Number.isFinite(e.updatedAt)||e.trashedAt!==undefined&&!Number.isFinite(e.trashedAt))throw new Error('随心记格式无效，请保留原文件后重新检查。');
  if(!validDate(e.date))throw new Error('记录日期无效。');
  if(!Array.isArray(e.tags)||e.tags.length>12||e.tags.some(t=>typeof t!=='string'||!t.trim()||t.length>24)||new Set(e.tags).size!==e.tags.length)throw new Error('标签最多 12 个，每个不超过 24 字符。');
  if(e.followUpTo!==undefined&&(!idOK(e.followUpTo)||e.followUpTo===e.id))throw new Error('续记引用无效。');
+ if(e.quotes!==undefined){
+  if(!Array.isArray(e.quotes)||e.quotes.length>20)throw new Error('每条记录最多收藏 20 句原话。');
+  const quotes=e.quotes.map(validateQuote);
+  if(new Set(quotes.map(q=>q.id)).size!==quotes.length||new Set(quotes.map(q=>q.text)).size!==quotes.length)throw new Error('原话收藏存在重复内容或身份。');
+ }
  return structuredClone(e);
 }
 export function validateMemory(value:unknown):MemoryAlbum{

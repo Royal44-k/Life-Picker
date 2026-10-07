@@ -1,6 +1,6 @@
 import {chromium} from 'playwright';import assert from 'node:assert/strict';
 const browser=await chromium.launch({channel:'msedge',headless:true});
-try{const page=await browser.newPage();await page.goto('http://localhost:5173/?view=journal');
+try{const page=await browser.newPage();await page.goto((process.env.TEST_URL||'http://localhost:5173')+'/?view=journal');
  const result=await page.evaluate(async()=>{
   const db=await import('/src/journal/database.ts'),m=await import('/src/journal/model.ts'),media=await import('/src/studio/database.ts');
   const c=document.createElement('canvas');c.width=c.height=10;const blob=await new Promise(r=>c.toBlob(r));await media.putAsset({id:'memory-photo',name:'a.png',type:'image/png',width:10,height:10,bytes:blob.size,blob,createdAt:1});

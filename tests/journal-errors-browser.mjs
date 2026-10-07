@@ -1,7 +1,7 @@
 import {chromium} from 'playwright';import assert from 'node:assert/strict';
 const browser=await chromium.launch({channel:'msedge',headless:true});
 try{
- const page=await browser.newPage({viewport:{width:390,height:844}});await page.goto('http://localhost:5173/?view=journal');await page.getByRole('button',{name:'记一笔',exact:true}).click();await page.getByRole('button',{name:'收好这页',exact:true}).click();assert.equal(await page.locator('[data-testid=journal-card]').count(),0);await page.getByText('空白页未保存，可以随时再记。',{exact:true}).waitFor({timeout:3000});
+ const page=await browser.newPage({viewport:{width:390,height:844}});await page.goto((process.env.TEST_URL||'http://localhost:5173')+'/?view=journal');await page.getByRole('button',{name:'记一笔',exact:true}).click();await page.getByRole('button',{name:'收好这页',exact:true}).click();assert.equal(await page.locator('[data-testid=journal-card]').count(),0);await page.getByText('空白页未保存，可以随时再记。',{exact:true}).waitFor({timeout:3000});
  await page.getByRole('button',{name:'记一笔',exact:true}).click();
  await page.getByLabel('随心记文字').evaluate(el=>{const set=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set;set.call(el,'很快又删掉的文字');el.dispatchEvent(new Event('input',{bubbles:true}));set.call(el,'');el.dispatchEvent(new Event('input',{bubbles:true}));});
  await page.getByText('已保存到本机',{exact:true}).waitFor();assert.equal(await page.getByLabel('随心记文字').inputValue(),'','late first autosave must not resurrect erased text');
