@@ -56,6 +56,7 @@ export default function Quotes(){
    if(current.some((r,i)=>r.quote.text!==snapshot.rows[i].quote.text))throw new Error('所选原话已变化。请先下载当前文案，再关闭弹窗重新选择。');
    if(!snapshot.text.trim())throw new Error('先留下一点想分享的文字。');
    const story=planStory(snapshot.text,DEFAULT_OPTIONS,{target:0,cover:false,toc:'no',ending:'none'});
+   story.pages=story.pages.map(page=>({...page,template:'quote'}));
    await saveStory(story,0);try{localStorage.setItem('shiye:studio:active',story.id);}catch{}
    setComposition(null);lock.current=false;navigationAllowed.current=true;location.href='/?view=studio&id='+encodeURIComponent(story.id);
   });
@@ -94,7 +95,7 @@ export default function Quotes(){
   {composition&&<Modal title="用自己的原话，接着写" onClose={closeComposition} wide>
    <p className="quotes-help">只带入你选中的 {composition.rows.length} 句。原记录全文、标签和照片留在私藏中；这里另存作品，不会自动发布。</p>
    <label className="quotes-field">想分享的文案<textarea aria-label="原话公开文案" rows={10} maxLength={20000} value={composition.text} disabled={!!busy} onChange={e=>setComposition({...composition,text:e.target.value})}/></label>
-   <p className="quotes-help">可修改文字，用单独一行 --- 分页。原话簿里的收藏不会跟着改。</p>
+   <p className="quotes-help">可修改文字，用单独一行 --- 分页。默认使用引语卡，可在工作台换样式。原话簿里的收藏不会跟着改。</p>
    {error&&<p className="journal-error" role="alert">{error}</p>}
    <div className="journal-actions"><button className="journal-secondary" disabled={!!busy} onClick={()=>download(new Blob([composition.text],{type:'text/plain;charset=utf-8'}),'拾页-原话创作文案.txt')}><Download size={15}/>下载当前文案</button><button className="journal-primary" disabled={!!busy||!composition.text.trim()} onClick={()=>void create()}>{busy||'另存到创作工作台'}</button></div>
   </Modal>}

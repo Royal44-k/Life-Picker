@@ -30,10 +30,11 @@ export default function Journal(){
  const [busy,setBusy]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[modal,setModal]=useState<'trash'|'photos'|'publish'|'chat'|'quote'|null>(null);
  const [reward,setReward]=useState<ReturnType<typeof saveReward>>(null),[chatMessages,setChatMessages]=useState<ChatMessage[]>([]);
  const [tags,setTags]=useState(''),[undo,setUndo]=useState<{id:string;revision:number}|null>(null),[photoUndo,setPhotoUndo]=useState<{id:string;entryId:string;index:number}|null>(null);
- const [publicText,setPublicText]=useState(''),[publicPhotos,setPublicPhotos]=useState<string[]>([]);const restoreInput=useRef<HTMLInputElement>(null);
+ const [publicText,setPublicText]=useState(''),[publicPhotos,setPublicPhotos]=useState<string[]>([]);const restoreInput=useRef<HTMLInputElement>(null),quoteSaving=useRef(false);
  const edit=useEntryDraft(saved=>setEntries(old=>[saved,...old.filter(e=>e.id!==saved.id)]));const {draft}=edit;
  const active=entries.filter(e=>!e.trashedAt).sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt);
  const shown=active.filter(e=>(!starred||e.starred)&&(!tag||e.tags.includes(tag))&&(!query.trim()||[e.text,e.date,...e.tags].join(' ').toLowerCase().includes(query.trim().toLowerCase())));
+ useEffect(()=>{const before=(e:BeforeUnloadEvent)=>{if(quoteSaving.current){e.preventDefault();e.returnValue='';}};addEventListener('beforeunload',before);return()=>removeEventListener('beforeunload',before);},[]);
  useEffect(()=>{window.scrollTo({top:0,behavior:'instant'});},[draft?.id]);
  useEffect(()=>{if(!draft?.revision)return;const url=new URL(location.href);url.searchParams.delete('new');url.searchParams.delete('prompt');url.searchParams.set('entry',draft.id);history.replaceState(null,'',url);},[draft?.id,draft?.revision]);
  const allTags=[...new Set(active.flatMap(e=>e.tags))].sort();
@@ -46,8 +47,8 @@ export default function Journal(){
  async function collectQuote(text:string){
   if(!await edit.settled())throw new Error('原记录尚未保存，请先关闭弹窗重试保存。');
   const current=edit.current.current;if(!current)throw new Error('请重新打开原记录。');
-  setBusy('正在收藏原话…');
-  try{const next=addQuote(current,text),revision=await saveEntry(next,current.revision);const saved={...next,revision};await edit.open(saved);setEntries(old=>[saved,...old.filter(e=>e.id!==saved.id)]);setNotice('原话已收藏，可以在原话簿中继续整理。');}finally{setBusy('');}
+  quoteSaving.current=true;setBusy('正在收藏原话…');
+  try{const next=addQuote(current,text),revision=await saveEntry(next,current.revision);const saved={...next,revision};await edit.open(saved);setEntries(old=>[saved,...old.filter(e=>e.id!==saved.id)]);setNotice('原话已收藏，可以在原话簿中继续整理。');}catch(e){const message=(e as Error).message;edit.setError('原话尚未收藏：'+message);throw new Error(message+' 如需载入其他窗口的修改，请关闭弹窗后点“重新载入已保存版本”。');}finally{quoteSaving.current=false;setBusy('');}
  }
  async function openChat(){if(draft&&!saveTags())return;if(await edit.settled())setModal('chat');}
  async function keepChat(text:string){const entry={...newEntry(today()),text:'与小拾的灵感对话（AI 建议，尚未核实）\n\n'+text,tags:['灵感']};const revision=await saveEntry(entry,0);setEntries(old=>[{...entry,revision},...old]);setNotice('这段 AI 灵感已另存为随心记，原记录保留。');}
