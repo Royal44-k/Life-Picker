@@ -1,3 +1,4 @@
+import {memoryBasis} from './narrative.ts';
 import {validateCapturedDate} from '../studio/photo-date.ts';
 import {validateCompanion} from './companion-profile.ts';
 import type {CompanionProfile} from './companion-profile.ts';
@@ -41,6 +42,10 @@ export function readJournalBundle(bytes:Uint8Array):JournalBundle{
 export function restoreJournalIdentity(bundle:JournalBundle):JournalBundle{
  const clean=records(bundle.entries,bundle.memories),photos=new Map(bundle.assets.map(a=>[a.id,makeId()])),entries=new Map(clean.entries.map(e=>[e.id,makeId()]));
  function ref(id:string){if(!entries.has(id))entries.set(id,makeId());return entries.get(id)!;}
- function mapPhotos(ids:string[]){return ids.map(id=>{const next=photos.get(id);if(!next)throw new Error('恢复时缺少照片映射。');return next;});}
- return {...(bundle.companion!==undefined?{companion:validateCompanion(bundle.companion)}:{}),entries:clean.entries.map(e=>({...e,id:ref(e.id),revision:Math.max(1,e.revision),followUpTo:e.followUpTo?ref(e.followUpTo):undefined,assetIds:mapPhotos(e.assetIds)})),memories:clean.memories.map(m=>({...m,id:makeId(),revision:Math.max(1,m.revision),items:m.items.map(i=>({...i,entryRevision:clean.entries.some(e=>e.id===i.entryId&&e.revision===0&&i.entryRevision===0)?1:i.entryRevision,entryId:ref(i.entryId),assetIds:mapPhotos(i.assetIds)}))})),assets:bundle.assets.map(a=>({...a,id:photos.get(a.id)!,trashedAt:undefined}))};
+ function mapPhotos(ids:string[]){return ids.map(id=>{const next=photos.get(id);if(!next)throw Error('恢复时缺少照片映射。');return next;});}
+ const memories=clean.memories.map(m=>{
+  const next={...m,id:makeId(),revision:Math.max(1,m.revision),items:m.items.map(i=>({...i,entryRevision:clean.entries.some(e=>e.id===i.entryId&&e.revision===0&&i.entryRevision===0)?1:i.entryRevision,entryId:ref(i.entryId),assetIds:mapPhotos(i.assetIds)}))};
+  if(m.narrative){const valid=m.narrative.basis===memoryBasis(m);next.narrative={...m.narrative,connections:m.narrative.connections.map(c=>({...c,entryId:ref(c.entryId)})),basis:valid?memoryBasis(next):m.narrative.basis,reviewed:valid&&m.narrative.reviewed};}return validateMemory(next);
+ });
+ return {...(bundle.companion!==undefined?{companion:validateCompanion(bundle.companion)}:{}),entries:clean.entries.map(e=>({...e,id:ref(e.id),revision:Math.max(1,e.revision),followUpTo:e.followUpTo?ref(e.followUpTo):undefined,assetIds:mapPhotos(e.assetIds)})),memories,assets:bundle.assets.map(a=>({...a,id:photos.get(a.id)!,trashedAt:undefined}))};
 }

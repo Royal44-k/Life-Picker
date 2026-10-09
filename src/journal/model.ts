@@ -1,3 +1,5 @@
+import {validateNarrative,narrativeState} from './narrative.ts';
+import type {MemoryNarrativeData} from './narrative.ts';
 import {makeId} from '../core/storage.ts';
 import type {CardOptions} from '../core/types.ts';
 import type {Story} from '../studio/model.ts';
@@ -5,7 +7,7 @@ import {newPage,planStory} from '../studio/planner.ts';
 export interface JournalQuote{id:string;text:string;sourceDate:string;createdAt:number}
 export interface JournalEntry{version:1;id:string;revision:number;date:string;text:string;assetIds:string[];tags:string[];starred:boolean;quotes?:JournalQuote[];followUpTo?:string;createdAt:number;updatedAt:number;trashedAt?:number}
 export interface MemoryItem{entryId:string;entryRevision:number;date:string;text:string;assetIds:string[]}
-export interface MemoryAlbum{version:1;id:string;revision:number;title:string;intro?:string;items:MemoryItem[];createdAt:number;updatedAt:number;trashedAt?:number}
+export interface MemoryAlbum{version:1;id:string;revision:number;title:string;intro?:string;narrative?:MemoryNarrativeData;items:MemoryItem[];createdAt:number;updatedAt:number;trashedAt?:number}
 const idOK=(v:unknown):v is string=>typeof v==='string'&&/^[\w:-]{1,100}$/.test(v);
 export function validDate(value:unknown):value is string{if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;const date=new Date(value+'T12:00:00Z');return Number.isFinite(date.getTime())&&date.toISOString().slice(0,10)===value;}
 function assetsOK(value:unknown):value is string[]{return Array.isArray(value)&&value.length<=10&&value.every(idOK)&&new Set(value).size===value.length;}
@@ -35,6 +37,7 @@ export function validateMemory(value:unknown):MemoryAlbum{
  if(m.intro!==undefined&&(typeof m.intro!=='string'||m.intro.length>4000))throw new Error('开场文字最多 4,000 字符。');
  const ids=new Set<string>();let length=m.intro?.length||0,photos=0;
  for(const item of m.items){if(!item||!idOK(item.entryId)||ids.has(item.entryId)||!Number.isInteger(item.entryRevision)||item.entryRevision<0||!validDate(item.date)||typeof item.text!=='string'||!assetsOK(item.assetIds)||!item.text.trim()&&!item.assetIds.length)throw new Error('回忆内容无效。');ids.add(item.entryId);length+=item.text.length;photos+=item.assetIds.length;}
+ if(m.narrative!==undefined){const n=validateNarrative(m.narrative,m.items.map(i=>i.entryId));length+=n.closing.length+n.connections.reduce((sum,c)=>sum+c.text.length,0);}
  if(length>16000||photos>30)throw new Error('这组回忆内容较多，请分成几册（每册最多 16,000 字符、30 张照片）。');
  return structuredClone(m);
 }
@@ -52,9 +55,13 @@ export function entryToStory(entry:JournalEntry,options:CardOptions):Story{
  return attachPhotos(planStory(e.text||'## '+e.date,options,{target:0,cover:false,toc:'no',ending:'none'}),e.assetIds,e.date);
 }
 export function memoryToStory(album:MemoryAlbum,options:CardOptions):Story{
- const m=validateMemory(album);const opening='# '+m.title+(m.intro?'\n\n'+m.intro:'');const source=opening+'\n\n'+m.items.map(item=>'## '+item.date+'\n\n'+item.text).join('\n\n---\n\n');
+ const m=validateMemory(album);if(['stale','unreviewed'].includes(narrativeState(m)))throw Error('串联文字尚未按当前片段核对，请先重新检查并确认。');
+ const opening='# '+m.title+(m.intro?'\n\n'+m.intro:'');
+ const segments=m.items.map(item=>{const connection=m.narrative?.connections.find(c=>c.entryId===item.entryId)?.text||'';return '## '+item.date+'\n\n'+(connection?connection+'\n\n':'')+item.text;});
+ const closing=m.narrative?.closing?'## 回头看\n\n'+m.narrative.closing:'',source=opening+'\n\n'+segments.join('\n\n---\n\n')+(closing?'\n\n---\n\n'+closing:'');
  const story=planStory(source,options,{target:0,cover:false,toc:'no',ending:'none'});
- const openingPages=planStory(opening,options,{target:0,cover:false,toc:'no',ending:'none'}).pages.map(p=>({...p,sourceRanges:undefined,sourceVersion:undefined}));
- const pages=openingPages.concat(m.items.flatMap(item=>attachPhotos(planStory('## '+item.date+'\n\n'+item.text,options,{target:0,cover:false,toc:'no',ending:'none'}),item.assetIds,item.date).pages.map(p=>({...p,sourceIds:['journal:'+item.entryId],sourceRanges:undefined,sourceVersion:undefined}))));
- if(pages.length>60)throw new Error('回忆图文超过 60 页，请减少本册记录。');return {...story,title:m.title,pages};
+ const free=(text:string)=>planStory(text,options,{target:0,cover:false,toc:'no',ending:'none'}).pages.map(p=>({...p,sourceRanges:undefined,sourceVersion:undefined}));
+ const pages=free(opening).concat(m.items.flatMap((item,i)=>attachPhotos(planStory(segments[i],options,{target:0,cover:false,toc:'no',ending:'none'}),item.assetIds,item.date).pages.map(p=>({...p,sourceIds:['journal:'+item.entryId],sourceRanges:undefined,sourceVersion:undefined}))),closing?free(closing):[]);
+ if(pages.length>60)throw Error('回忆图文超过 60 页，请减少本册记录。');
+ return {...story,title:m.title,pages,...(m.narrative?.origin==='ai'?{aiReviewed:true,warnings:[...story.warnings,'串联文字含人工核对后的 AI 草稿；原记录快照保留。']}:{})};
 }

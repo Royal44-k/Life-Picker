@@ -2,7 +2,7 @@ import {randomUUID,createHash} from 'node:crypto';
 import {mkdir,readFile,writeFile,rename,rm,stat} from 'node:fs/promises';
 import {resolve,join} from 'node:path';
 export const DEFAULT_PRICING={model:'deepseek-flash',hit:.04,input:2,output:8,source:'https://api-docs.deepseek.com/zh-cn/quick_start/pricing/',checkedOn:'2026-10-05'};
-const features=['copy','storyboard','page','chat','inspiration','visual'],states=['running','completed','error','cancelled','interrupted'];
+const features=['copy','storyboard','page','chat','inspiration','visual','memory'],states=['running','completed','error','cancelled','interrupted'];
 const round=n=>Math.round(n*1e9)/1e9,clone=v=>structuredClone(v),hash=v=>createHash('sha256').update(v).digest('hex');
 const count=v=>Number.isSafeInteger(v)&&v>=0&&v<=100_000_000;
 const date=v=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&new Date(v+'T12:00:00Z').toISOString().slice(0,10)===v;
