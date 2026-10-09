@@ -1,7 +1,7 @@
 {
   "name": "shiye-card-studio",
   "private": true,
-  "version": "1.5.0",
+  "version": "1.6.0",
   "type": "module",
   "scripts": {
     "dev": "node --use-env-proxy server/index.mjs",
@@ -17,7 +17,7 @@
     "test:inspiration:offline": "node --experimental-strip-types tests/inspiration-offline-browser.mjs",
     "test:inspiration": "node tests/inspiration-material-browser.mjs && node tests/inspiration-ai-browser.mjs",
     "test:navigation": "node tests/navigation-browser.mjs && node tests/navigation-errors-browser.mjs",
-    "test:e2e": "npm run test:navigation && npm run test:sources:browser && npm run test:inspiration && npm run test:series && npm run test:usage && node tests/browser.mjs && npm run test:studio && npm run test:journal && npm run test:memory && npm run test:video:browser && npm run test:quotes && npm run test:companion:final",
+    "test:e2e": "npm run test:navigation && npm run test:sources:browser && npm run test:inspiration && npm run test:series && npm run test:usage && node tests/browser.mjs && npm run test:studio && npm run test:journal && npm run test:memory && npm run test:video:browser && npm run test:quotes && npm run test:companion:final && npm run test:history && npm run test:source-update && npm run test:ai-settings",
     "test:video:browser": "node tests/video-lifecycle-browser.mjs && node tests/video-browser.mjs && node tests/video-errors-browser.mjs && node tests/video-cancel-browser.mjs",
     "test:video": "node tests/video-render-real.mjs && node tests/video-long-real.mjs && node tests/video-private-paths.mjs",
     "test:memory": "node tests/memory-browser.mjs && node tests/memory-errors-browser.mjs",
