@@ -1,6 +1,6 @@
 # v1.6～v1.9 执行决定与验收记录
 
-完整实施取舍、代价与验证记录，按实际执行顺序保留。各阶段历史“待完成”以最后阶段及shiye-final-scope.md为准。无未处理Minor；外部条件仍单列。
+完整实施取舍、代价与验证记录，按实际执行顺序保留。历史阶段的待完成项以最后阶段及shiye-final-scope.md为准。无未处理Minor；外部条件仍单列。源码ZIP校验结果独立存于releases，避免归档包含自身摘要。
 
 ## implementation-v1.6
 
@@ -113,3 +113,7 @@ Final pre-integration:220/220 fullunit PASS; main remains exact v1.8 baseline, p
 
 Live verification:3/3 actual app-metered DeepSeek calls returned200 and valid structure/settings/revisions.1063input/326output tokens; estimatedCNY0.004734; no unknown fees, no retry. Ruling: narrative poetic inference is not established autobiographical fact, and visual reason can contain parameter labels; retain human editing/review and explicitly limit quality claim — costs review effort, no fact guarantee. No extra live call.
 Integration: main codex/local-final fast-forward to e006df0; main220/220 PASS; private.env and previousv18archive hashes unchanged; previousdist retained; main5173prodPID10244. Final source archive/published smoke pending.
+
+Live smoke: original5173 production in new disposable browser PASS offline manual narrative/save/reload/PNG ZIP/backup; home and v1.9 guide HTTP200. User browser storage not opened or changed.
+Final: Ruling: retain ignored worktree and verification artifacts as reproducible local evidence; only this execution's four plan scratch directories will be removed after exporting their full ledgers — costs extra disk space, avoids losing review/render evidence.
+Task 3: complete (commits 62eef3d..4429b2d, tests: npm.cmd test → ℹ duration_ms 5505.1765)
