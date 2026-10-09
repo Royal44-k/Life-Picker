@@ -125,3 +125,75 @@ unDraw 与 Storyset 保持排除：unDraw 当前许可限制素材打包再分�
 5. **后续阶段**：再评估定时频率与持久会话；不要直接把公开素材的每日 09:00 作业套到账号采集。电脑离线／关闭时不能运行的现有本地限制仍须如实显示。[本地调度实现](../server/source-jobs.mjs)
 
 本报告核实了“源码具有什么接口、发布者提供什么文件、哪些资产如何许可”；没有核实账号可用性、平台对自动化的许可、挑战检测完备性、二进制行为与源码完全一致、素材最终视觉质量或模板转写效果。这些验收项仍属未来工作。
+
+
+## 6. Windows 首次启动 150 秒未就绪：浏览器依赖补核（2026-10-09）
+
+补核触发：主任务报告已下载 v2.5.5 Windows 服务 EXE，文件 15,612,416 bytes，重算 SHA-256 与第 2.1 节发布值一致；使用回环临时端口、私有 AUTH_TOKEN／COOKIES_PATH，150 秒内未就绪，未登录账号。这里是主任务提供的运行记录，本研究未再次运行 EXE，未读取 Cookie、环境变量或账号日志。
+
+### 6.1 已核实的下载来源、版本与摘要
+
+`EnsureBrowser` 位于 [browser/browser_download.go](https://raw.githubusercontent.com/xpzouying/xiaohongshu-mcp/v2.5.5/browser/browser_download.go)。v2.5.5 的完整提交为 `a5c8f7799980ba1fdd501999843eb2d17e4c9a9f`；内嵌版本文件写明 **148.0.7778.215**，不在启动时动态读取 latest。[固定源码树](https://api.github.com/repos/xpzouying/xiaohongshu-mcp/git/trees/v2.5.5?recursive=1)、[browser_version.txt](https://raw.githubusercontent.com/xpzouying/xiaohongshu-mcp/v2.5.5/browser/browser_version.txt)
+
+| 项目 | 已核实值 |
+| --- | --- |
+| Windows amd64 归档 | [windows-x64.zip](https://cdn.one-world.ai/browsers/148.0.7778.215/windows-x64.zip) |
+| 归档内目标程序名 | `chrome.exe`；EnsureBrowser 在缓存目录递归寻找 |
+| 发布摘要清单 | [SHA256SUMS](https://cdn.one-world.ai/browsers/148.0.7778.215/SHA256SUMS) |
+| Windows 归档的发布 SHA-256 | `5ae94143fa323167b7085242504e05dc8eeb6d96ca5feb80c887ade36f242b40` |
+| 本轮仅 HEAD 的结果 | HTTP 200；Content-Type `application/zip`；Content-Length **189,954,738 bytes**；Last-Modified `Mon, 20 Jul 2026 04:45:37 GMT` |
+
+摘要清单用普通 HTTP GET 读取，返回 200；归档只做 HEAD，没有接收 ZIP 正文、下载或解压浏览器。摘要为**分发者提供值**，不是本轮对 ZIP 重算值。两个 CDN URL 均由固定源码的 `browserCDNBase + version + filename` 得到；GitHub 工作流也使用同一 CDN 检查三平台文件和 SHA256SUMS。[下载源码](https://raw.githubusercontent.com/xpzouying/xiaohongshu-mcp/v2.5.5/browser/browser_download.go)、[版本更新工作流](https://raw.githubusercontent.com/xpzouying/xiaohongshu-mcp/v2.5.5/.github/workflows/update-browser.yml)
+
+### 6.2 与 150 秒现象的关系
+
+**已核实**：main 在创建 HTTP server 之前同步调用 EnsureBrowser。未命中缓存时，顺序为下载 ZIP → 读取同目录 SHA256SUMS 并校验 → 解压 → 找到 chrome.exe → 返回，之后才开始监听。因此 `/health` 在浏览器准备完成前不会可用。[启动顺序](https://raw.githubusercontent.com/xpzouying/xiaohongshu-mcp/v2.5.5/main.go)、[HTTP 启动](https://raw.githubusercontent.com/xpzouying/xiaohongshu-mcp/v2.5.5/app_server.go)
+
+**已核实**：归档下载单次 HTTP 超时 10 分钟，最多 3 次，失败间隔 2 秒；摘要请求超时 30 秒。日志先输出开始下载，期间没有逐字节进度；校验后才输出解压／就绪。缓存命中只按文件名寻找，不重验缓存内容。[EnsureBrowser、downloadFile、fetchExpectedSHA、findBinary](https://raw.githubusercontent.com/xpzouying/xiaohongshu-mcp/v2.5.5/browser/browser_download.go)
+
+**判断**：150 秒未就绪与首次大文件传输／校验／解压尚未完成相容，不能据此断言 -port 或 Bearer 设置错误。已证实 CDN 当次短请求可达；HEAD 与小摘要成功不能证明近 190 MB 传输吞吐、完整性、磁盘写入或解压成功。本轮没有读取现有缓存或诊断日志，故不能把“可能的网络依赖”升级为已定位根因。准备阶段应显示 `preparing_browser` 与阶段日志，避免误显示账号未登录；是否允许更长有界等待由主任务决定。
+
+### 6.3 源码明确支持的手动／离线准备方式
+
+缓存路径由 Go `os.UserCacheDir()` 加 `xiaohongshu-mcp/browser/148.0.7778.215` 构成；Go 官方文档规定 Windows 的该根为 `%LocalAppData%`。因此符号路径为 **`%LOCALAPPDATA%\xiaohongshu-mcp\browser\148.0.7778.215\`**。本轮只核对规则，没有读取或更改此机环境变量，也未访问该目录。[缓存路径源码](https://raw.githubusercontent.com/xpzouying/xiaohongshu-mcp/v2.5.5/browser/browser_download.go)、[Go UserCacheDir](https://pkg.go.dev/os#UserCacheDir)
+
+建议后续需要离线准备时，按源码错误提示明确支持的方式处理：
+
+1. 从上述**同版本分发链接**取得完整 ZIP 与摘要清单，先独立重算 ZIP 的 SHA-256 并核对；保留来源、版本与校验记录。
+2. 完整解压原包到上述版本缓存目录，保留其子目录、DLL、资源及许可证文件；不能只放一个 chrome.exe，也不能用同名占位文件。
+3. 由主任务在既定回环端口与私有会话配置下重启原 EXE；缓存命中后应跳过下载。首次只检查服务就绪，账号登录仍是独立的人工作业。
+
+这些是**未执行的后续操作建议**。源码确实写明离线时可手动下载后解压到缓存目录；当前服务没有 -bin 入口，而且 browser.go 要求使用这套固定浏览器，不应通过替换为系统 Chrome 或调整指纹／代理配置来改变既定实验边界。[离线错误提示及缓存扫描](https://raw.githubusercontent.com/xpzouying/xiaohongshu-mcp/v2.5.5/browser/browser_download.go)、[浏览器装配](https://raw.githubusercontent.com/xpzouying/xiaohongshu-mcp/v2.5.5/browser/browser.go)、[启动参数](https://raw.githubusercontent.com/xpzouying/xiaohongshu-mcp/v2.5.5/main.go)
+
+范围限制：这里核实的是维护者提供的分发地址与其支持的手动准备流程。本轮没有检查浏览器包内 LICENSE／NOTICE、可复现构建或独立签名，不能据此作额外的浏览器再分发授权结论；也没有改变指纹、代理或反检测设置。
+
+
+### 6.4 面向工作区预准备的精确约束与独立校验片段
+
+- **显式目录能力**：v2.5.5 没有自有的浏览器缓存路径参数或环境变量；cacheDir 只由 `os.UserCacheDir()`、固定产品子目录和内嵌版本组成，`COOKIES_PATH` 不参与浏览器缓存计算。保持现有环境／源码不变时，在工作区下载或解压不会被原 EXE 自动发现；工作区可作为准备区，最终完整目录须放入该 EXE 实际用户缓存位置。本轮不读取、更改环境，也不建议改写系统目录变量。[缓存函数](https://raw.githubusercontent.com/xpzouying/xiaohongshu-mcp/v2.5.5/browser/browser_download.go)、[参数入口](https://raw.githubusercontent.com/xpzouying/xiaohongshu-mcp/v2.5.5/main.go)
+- **ZIP 内精确相对路径：未核实**。源码未写死顶层目录，仅递归找 basename 为 `chrome.exe` 的文件；不能据此宣称它一定是 `chrome-win64/chrome.exe` 或 ZIP 根。主任务取得完整归档后，可离线列出中央目录确认，无需运行它或额外联网。[findBinary](https://raw.githubusercontent.com/xpzouying/xiaohongshu-mcp/v2.5.5/browser/browser_download.go)
+- **准备阶段的网络边界**：按固定源码正常路径，从启动到 HTTP server 建立，浏览器准备只涉及上述 ZIP 与 SHA256SUMS；没有从其他站点解析“最新浏览器”或自动装 npm／Go 依赖的步骤。默认 Chromium 自动下载回退被项目主动禁用，并显式传入找到的浏览器路径；这支持在完整缓存就绪后进行无账号的服务健康检查。此结论限定在启动准备流程，不能扩展为浏览器随后访问小红书页面时的网络白名单保证。[main](https://raw.githubusercontent.com/xpzouying/xiaohongshu-mcp/v2.5.5/main.go)、[EnsureBrowser](https://raw.githubusercontent.com/xpzouying/xiaohongshu-mcp/v2.5.5/browser/browser_download.go)、[browser.go](https://raw.githubusercontent.com/xpzouying/xiaohongshu-mcp/v2.5.5/browser/browser.go)
+
+以下 PowerShell 是供主任务对**已下载归档**独立核验的片段，本研究未执行。路径是工作区示例，使用时对应真实下载位置；它不下载、不解压、不运行程序，不读取环境变量或 Cookie：
+
+```powershell
+$browserArchive = 'D:\Codex-chat-II\.local\shiye-completion\downloads\windows-x64.zip'
+$browserExpectedSha = '5ae94143fa323167b7085242504e05dc8eeb6d96ca5feb80c887ade36f242b40'
+$browserActualSha = (Get-FileHash -LiteralPath $browserArchive -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($browserActualSha -ne $browserExpectedSha) {
+    throw '浏览器归档 SHA-256 不匹配，停止准备。'
+}
+
+# 校验通过后，仅列出 ZIP 中 chrome.exe 的真实相对路径。
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$browserZip = [System.IO.Compression.ZipFile]::OpenRead($browserArchive)
+try {
+    $browserZip.Entries |
+        Where-Object { $_.Name -eq 'chrome.exe' } |
+        Select-Object FullName, Length
+} finally {
+    $browserZip.Dispose()
+}
+```
+
+应用内的 `verifySHA256` 同样对归档全部字节做 SHA-256，并匹配发布摘要；它**只在自动下载分支校验**。人工预置缓存会走文件名发现分支，因此外部完整摘要校验不可省略。[校验实现](https://raw.githubusercontent.com/xpzouying/xiaohongshu-mcp/v2.5.5/browser/browser_download.go)

@@ -33,7 +33,7 @@ try{
  sourceAssets=await createPublicAssetCache({root:resolve(root,'.local/source-assets',String(port))});
  sourceJobs=await createSourceJobs({root:resolve(root,'.local/source-jobs',String(port)),getStore:()=>sourceStore,assets:sourceAssets});
 }catch{console.error('公开素材任务暂时无法启动，原任务文件保留。手动来源仍可管理。');}
-const xhsRuntime=createXhsRuntime({root:resolve(root,'.local/xhs-runtime',String(port)),binary:resolve(root,'.local/xhs-runtime/bin',PINNED_XHS.file)});
+const xhsRuntime=createXhsRuntime({root:resolve(root,'.local/xhs-runtime',String(port)),cacheRoot:resolve(root,'.local/xhs-browser-cache'),binary:resolve(root,'.local/xhs-runtime/bin',PINNED_XHS.file)});
 let xhs=null;try{xhs=await createXhsCollection({root:resolve(root,'.local/xhs-state',String(port)),getStore:()=>sourceStore,transport:createXhsTransport({endpoint:xhsRuntime.endpoint}),runtime:xhsRuntime});}catch{console.error('个人来源状态暂时无法读取，已暂停连接，手动来源仍可使用。');}
 const sourceApi=createSourceHandler(sourceStore,pairCode,{assets:sourceAssets,jobs:sourceJobs,xhs,recover:async bundle=>{
  const result=await recoverSourceStore({root:sourceRoot,bundle});sourceStore=result.store;return result;

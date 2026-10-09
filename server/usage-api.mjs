@@ -1,5 +1,5 @@
 import {readUsage} from './usage-store.mjs';
-const featureByPath={'/api/ai':'copy','/api/storyboard':'storyboard','/api/page-ai':'page','/api/chat':'chat','/api/inspiration':'inspiration'};
+const featureByPath={'/api/ai':'copy','/api/storyboard':'storyboard','/api/page-ai':'page','/api/chat':'chat','/api/inspiration':'inspiration','/api/visual-ai':'visual'};
 export function meterCall({store,fetcher,path,signal}){
  let reservation=null,usage=null,attempted=false,finished=false;
  return {

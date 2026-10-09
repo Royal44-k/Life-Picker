@@ -12,7 +12,7 @@ type Snapshot={createdAt:number;settings:Settings;month:{key:string;requests:num
 type Draft={enabled:boolean;monthlyYuan:string;serverYuan:string;model:string;hit:string;input:string;output:string;source:string;checkedOn:string};
 const draftOf=(s:Settings):Draft=>({enabled:s.enabled,monthlyYuan:String(s.monthlyYuan),serverYuan:s.serverYuan===null?'':String(s.serverYuan),model:s.pricing.model,hit:String(s.pricing.hit),input:String(s.pricing.input),output:String(s.pricing.output),source:s.pricing.source,checkedOn:s.pricing.checkedOn});
 const yen=(n:number)=>'¥'+n.toFixed(6),today=()=>new Date(Date.now()+8*3600_000).toISOString().slice(0,10);
-const featureNames:Record<string,string>={copy:'文案创作',storyboard:'智能分镜',page:'单页改写',chat:'和小拾聊天',inspiration:'选材灵感'};
+const featureNames:Record<string,string>={copy:'文案创作',storyboard:'智能分镜',page:'单页改写',chat:'和小拾聊天',inspiration:'选材灵感',visual:'视觉试配'};
 const statusNames:Record<string,string>={running:'生成中',completed:'已返回',error:'未取得可用结果',cancelled:'取消',interrupted:'服务中断'};
 function initialCode(){try{return sessionStorage.getItem('shiye:storyboard:code')||sessionStorage.getItem('shiye:ai-code')||'';}catch{return '';}}
 export default function Usage(){

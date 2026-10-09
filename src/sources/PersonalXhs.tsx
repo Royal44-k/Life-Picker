@@ -26,7 +26,7 @@ export function PersonalXhs({code,disabled,onSettled}:{code:string;disabled:bool
  const canCollect=data&&['connected','succeeded'].includes(data.state)&&!data.running;
  return <section className="source-collection-status" aria-label="个人小红书参考"><p className="hub-eyebrow">本人账号 · 本机只读</p><h2>个人小红书参考</h2><p className="source-help">先本人扫码，再手动获取最多 6 条标题、作者、链接与可见互动量。需要写下自己的概括再审核；不会复制全文、图片或评论。</p>
  {(error||readError||!data?.ready&&data?.message)&&<p role="alert" className="source-error">{error||readError||data?.message}</p>}{!data&&!error&&<p role="status">正在读取个人来源状态…</p>}
- {data&&<><p role="status">{busy==='login'||busy==='check'?'正在准备浏览器或检查登录，首次准备可能需要几分钟…':data.message}</p>{!data.installed&&<p className="source-help">电脑上的个人来源工具尚未准备完成。请先按使用指南完成本机准备，再刷新状态。</p>}
+ {data&&<><p role="status">{busy==='login'||busy==='check'?'正在检查本人登录，请稍候…':data.message}</p>{!data.installed&&<p className="source-help">电脑上的个人来源工具尚未准备完成。请先按使用指南完成本机准备，再刷新状态。</p>}
  <div className="source-actions"><button disabled={disabled||!!busy||!data.installed||data.running} onClick={()=>void action('login')}>本人扫码登录</button><button disabled={disabled||!!busy||!data.installed||data.running} onClick={()=>void action('check')}>检查登录状态</button><button disabled={disabled||busy==='stop'} onClick={()=>void action('stop')}>停止个人来源</button></div>
  {qr&&<div className="source-xhs-qr">{expired?<p>二维码已过期，可点“本人扫码登录”重新获取。</p>:<><img src={qr.image} alt="本人小红书登录二维码"/><p>使用自己的小红书 App 扫码。完成后点“检查登录状态”。</p><small>二维码仅本次登录使用，请勿转发。</small></>}</div>}
  <label>参考入口<select aria-label="小红书参考入口" disabled={disabled||!!busy||data.running} value={mode} onChange={e=>setMode(e.target.value as 'home'|'search')}><option value="home">本人推荐页</option><option value="search">按关键词找参考</option></select></label>
