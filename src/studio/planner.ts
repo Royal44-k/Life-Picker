@@ -32,7 +32,7 @@ export function planStory(source:string,options:CardOptions,settings:StorySettin
     if(settings.target&&pages.length>settings.target)warnings.push('完整内容需要 '+pages.length+' 页，超过目标 '+settings.target+' 页。可保留全部、拆为系列，或预览 AI 精简建议。');
     if(pages.length>60)throw new Error('超过 60 页，请拆成多篇作品。');
   }
-  return {version:2,id:makeId(),revision:0,source,sourceHash:hashText(source),title,options:{...options},settings:{...settings},pages,warnings,updatedAt:Date.now()};
+  return {version:2,id:makeId(),revision:0,source,compiledSource:source,sourceHash:hashText(source),title,options:{...options},settings:{...settings},pages,warnings,updatedAt:Date.now()};
 }
 export function editPage(s:Story,id:string,change:Partial<StoryPage>):Story{
   const old=s.pages.find(p=>p.id===id);if(!old)throw new Error('没有找到这一页。');

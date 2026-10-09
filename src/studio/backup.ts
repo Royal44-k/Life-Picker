@@ -11,11 +11,13 @@ const idOK=(v:unknown)=>typeof v==='string'&&/^[\w:-]{1,100}$/.test(v);
 export function validateStory(value:unknown):Story{
  const s=value as Story;
  if(!s||s.version!==2||!idOK(s.id)||!Number.isInteger(s.revision)||s.revision<0||typeof s.source!=='string'||s.source.length>20000||typeof s.sourceHash!=='string'||typeof s.title!=='string'||s.title.length>200||!isOptions(s.options)||!Number.isFinite(s.updatedAt))throw new Error('作品格式不正确，未导入。');
+ if(s.compiledSource!==undefined&&(typeof s.compiledSource!=='string'||s.compiledSource.length>20000))throw new Error('已确认原文格式无效。');
  if(!s.settings||![0,6,9].includes(s.settings.target)||typeof s.settings.cover!=='boolean'||!['none','question','follow','collect'].includes(s.settings.ending)||!['auto','yes','no',undefined].includes(s.settings.toc))throw new Error('作品编排设置无效。');
  if(!Array.isArray(s.pages)||s.pages.length>60||!Array.isArray(s.warnings)||s.warnings.length>100||s.warnings.some(w=>typeof w!=='string'||w.length>1000))throw new Error('作品页数或提示无效。');
  const ids=new Set<string>();let total=0;
  for(const p of s.pages){
   if(!p||!idOK(p.id)||ids.has(p.id)||!['cover','toc','body','diagram','ending'].includes(p.role)||typeof p.source!=='string'||p.source.length>20000||typeof p.locked!=='boolean'||!['none','pyramid','steps','compare','timeline','checklist'].includes(p.diagram)||!['plain','quote','photo'].includes(p.layout)||!['cover','contain'].includes(p.fit)||![p.focusX,p.focusY].every(v=>Number.isFinite(v)&&v>=0&&v<=1)||p.assetId!==undefined&&!idOK(p.assetId)||!Array.isArray(p.sourceIds)||p.sourceIds.length>200||p.sourceIds.some(v=>typeof v!=='string'||v.length>200))throw new Error('页面数据无效，未导入。');
+  if(p.retainedFromPrevious!==undefined&&typeof p.retainedFromPrevious!=='boolean')throw new Error('保留来源标记无效。');
   if(p.template!==undefined&&!templateExists(p.template))throw new Error('页面模板无效。');
   if(p.sourceVersion!==undefined&&(typeof p.sourceVersion!=='string'||p.sourceVersion.length>100))throw new Error('页面来源版本无效。');
   if(p.codeContinuation!==undefined&&typeof p.codeContinuation!=='boolean')throw new Error('代码续页标记无效。');
