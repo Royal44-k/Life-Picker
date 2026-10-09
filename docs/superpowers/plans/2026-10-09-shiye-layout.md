@@ -40,8 +40,8 @@
 ### Task 3: 长文拆篇与交付
 **Files:** src/studio/split-works.ts, SplitWorksPanel.tsx, database.ts, Studio.tsx; tests/split-works.test.ts, split-works-storage.mjs, layout-pwa.mjs; release docs and guide.
 **Interfaces:** splitWorkPlan(story,maxPages,measure) -> drafts and preview; saveSplitWorks(originalId,expectedRevision,drafts) atomic check + insert.
-- [ ] Test splits at confirmed page boundaries, respects continuation groups where possible, originals and photo references unchanged, unique IDs/TOC remap, transaction failure creates none, CAS refuses outdated original, no accidental duplicate action. Expected RED.
-- [ ] Preview titles and actual page counts; 6/9 choice; no content rewriting, create independent works linked to source work and optional current series. Original remains; mixed source/AI copy unchanged. Explain single oversized page before persistence; reject >10 outputs in one action.
+- [x] Test splits at confirmed page boundaries, respects continuation groups where possible, originals and photo references unchanged, unique IDs/TOC remap, transaction failure creates none, CAS refuses outdated original, no accidental duplicate action. Expected RED.
+- [x] Preview titles and actual page counts; 6/9 choice; no content rewriting, create independent works linked to source work and optional current series. Original remains; mixed source/AI copy unchanged. Explain single oversized page before persistence; reject >10 outputs in one action.
 - [ ] Run all unit, appropriate storage/browser, build and production offline export, independent whole-branch review, fix important findings with RED→GREEN tests. Expected PASS.
 - [ ] Record real limits, preserve tag/archive, update same local origin. Continue next source/template expansion and companion narrative plan. Real iPhone/AI quality remain separate.
 

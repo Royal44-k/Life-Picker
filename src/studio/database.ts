@@ -153,3 +153,32 @@ export async function deleteAssetPermanently(id:string):Promise<void>{
  };
  try{await finish(db,tx,()=>undefined);}catch(e){if(reason)throw new Error(reason);throw e;}
 }
+
+export async function saveSplitWorks(originalId:string,expectedRevision:number,drafts:Story[]):Promise<Story[]>{
+ if(drafts.length<2||drafts.length>10)throw new Error('每次拆成 2～10 篇；单篇无需拆分。');
+ const ids=new Set<string>(),copies=drafts.map((value,i)=>{
+  const s=structuredClone(validateStory(value));
+  if(s.id===originalId||ids.has(s.id)||s.splitFrom?.id!==originalId||s.splitFrom.revision!==expectedRevision||s.splitFrom.part!==i+1||s.splitFrom.total!==drafts.length)throw new Error('拆篇预览已变化，请重新预览。');
+  ids.add(s.id);return {...s,revision:1};
+ });
+ const db=await openDB(),tx=db.transaction(['stories','assets'],'readwrite'),store=tx.objectStore('stories');let problem:Error|undefined;
+ const fail=(e:unknown)=>{if(problem)return;problem=e instanceof Error?e:new Error('拆篇保存失败，原作品保留。');tx.abort();};
+ store.get(originalId).onsuccess=e=>{
+  const original=(e.target as IDBRequest).result as Story|undefined;
+  if(!original||original.revision!==expectedRevision){fail(new Error('原作品已被另一窗口更新，请重新预览拆篇。'));return;}
+  const allowed=new Set(original.pages.flatMap(p=>p.assetId?[p.assetId]:[]));
+  const photos=[...new Set(copies.flatMap(s=>s.pages.flatMap(p=>p.assetId?[p.assetId]:[])))];
+  if(photos.some(id=>!allowed.has(id))){fail(new Error('拆篇照片与原作品不一致，请重新预览。'));return;}
+  const put=()=>{if(problem)return;try{for(const s of copies)store.add(s);}catch(e){fail(e);}};
+  let remaining=photos.length;if(!remaining){put();return;}
+  for(const id of photos)tx.objectStore('assets').get(id).onsuccess=e=>{
+   if(!(e.target as IDBRequest).result){fail(new Error('照片已缺失，请回到原作品重新选择后拆篇。'));return;}
+   if(--remaining===0)put();
+  };
+ };
+ try{return await finish(db,tx,()=>copies);}catch(e){
+  if(problem)throw problem;
+  if((e as Error).name==='ConstraintError')throw new Error('这组拆篇已保存过，请到作品库查看，未重复创建。');
+  throw new Error('本次拆篇未保存，原作品保留；请释放空间或备份后重试。');
+ }
+}
