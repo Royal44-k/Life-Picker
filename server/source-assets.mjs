@@ -35,7 +35,8 @@ async function fetchBytes(url,{fetchImpl,signal,limit,type,timeoutMs}){
  knownUrl(url);const controller=new AbortController(),abort=()=>controller.abort();if(signal?.aborted)abort();else signal?.addEventListener('abort',abort,{once:true});let timedOut=false;
  const timer=setTimeout(()=>{timedOut=true;controller.abort();},timeoutMs);
  try{
-  const response=await fetchImpl(url,{redirect:'error',signal:controller.signal,headers:{Accept:type,'User-Agent':'Shiye-Personal-Source-Check/1.3'}});
+  const request=()=>fetchImpl(url,{redirect:'error',signal:controller.signal,headers:{Accept:type,'User-Agent':'Shiye-Personal-Source-Check/1.10'}});
+  let response;try{response=await request();}catch(e){controller.signal.throwIfAborted();if(!['UND_ERR_CONNECT_TIMEOUT','ECONNRESET','ETIMEDOUT','EAI_AGAIN'].includes(e?.cause?.code))throw e;response=await request();}
   if(response.redirected)throw new Error('来源发生重定向，需要重新核对。');
   if(!response.ok)throw new Error('来源暂时无法访问（HTTP '+response.status+'）。');
   if(!(response.headers.get('content-type')||'').toLowerCase().startsWith(type))throw new Error('来源文件类型变化，需要重新核验。');
