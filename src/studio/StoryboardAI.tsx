@@ -27,7 +27,7 @@ export function StoryboardAI({story,onApply,onClose}:{story:Story;onApply:(pages
    const data=await response.json();if(!response.ok)throw new Error(data.error||'AI 编排失败。');
    if(controller.signal.aborted||request.current!==controller)return;
    if(data.sourceHash!==hashText(story.source)||data.requestVersion!==requestVersion||requestVersion!==storyboardVersion(latest.current.story,latest.current.photos))throw new Error('原文、照片或编排设置已变化，请重新生成。');
-   if(!data.settings||(['target','cover','toc','ending'] as const).some(key=>data.settings[key]!==settings[key]))throw new Error('AI 返回的设置与本次选择不一致，未应用。');
+   if(!data.settings||(['target','cover','toc','ending','purpose'] as const).some(key=>data.settings[key]!==settings[key]))throw new Error('AI 返回的设置与本次选择不一致，未应用。');
    setCandidateVersion(requestVersion);
    if(data.usageWarning)setError(data.usageWarning);setPages(data.pages.map((p:StoryPage)=>({...newPage(p.source,p.role,p.sourceIds),diagram:p.diagram})));
   }catch(e){setError((e as Error).name==='AbortError'?'已取消，原作品保留。':(e as Error).message);}finally{setBusy(false);}

@@ -5,7 +5,7 @@ import {contentHeight,pageCapacity,roughMeasure} from './scene.ts';
 
 export interface ContentPage {text:string;start:number;end:number;codeContinuation:boolean;references:{blockId:string;start:number;end:number}[]}
 interface Unit {start:number;end:number}
-export function paginateSource(source:string,options:CardOptions,measure:MeasureText=roughMeasure,initialCode=false):ContentPage[]{
+export function paginateSource(source:string,options:CardOptions,measure:MeasureText=roughMeasure,initialCode=false,preferences?:{target:number}):ContentPage[]{
  const index=indexSource(source,initialCode),capacity=pageCapacity(options);
  const code=index.blocks.filter(b=>b.kind==='code');
  const inCode=(position:number)=>code.some(b=>position<b.end&&(position>b.start||(initialCode&&b.start===0&&position===0)));
@@ -28,6 +28,7 @@ export function paginateSource(source:string,options:CardOptions,measure:Measure
   const s=span(start,end);if(s.end>s.start)result.push({...s,text:source.slice(s.start,s.end),codeContinuation:inCode(s.start),references:sourceReferences(index,s.start,s.end)});
   if(result.length>60)throw new Error('超过 60 页，请拆成多篇作品。');
  };
+ const allUnits:Unit[]=[],regionEnds:number[]=[];
  for(const blocks of regions){
   if(!blocks.length)continue;
   const units:Unit[]=[];
@@ -58,19 +59,28 @@ export function paginateSource(source:string,options:CardOptions,measure:Measure
    }
    if(cursor<end)units.push({start:cursor,end});
   }
-  // Each position considers at most 24 semantic units; measurements are cached.
-  const costs=new Array<number>(units.length+1).fill(Infinity),next=new Array<number>(units.length);
-  costs[units.length]=0;
-  for(let i=units.length-1;i>=0;i--){
-   for(let j=i;j<Math.min(units.length,i+24);j++){
-    const h=height(units[i].start,units[j].end);if(h>capacity)break;
-    const crossed=index.headings.filter(b=>b.level<=2&&b.start>units[i].start&&b.start<units[j].end).length;
-    const density=Math.min(1,h/capacity);
-    const score=100+300*(1-density)**2+crossed*600+costs[j+1];
-    if(score<costs[i]){costs[i]=score;next[i]=j+1;}
+  allUnits.push(...units);
+  regionEnds.push(...units.map(()=>allUnits.length));
+ }
+ const count=allUnits.length;if(!count)return result;
+ // A state is (next semantic unit, remaining pages); edges cannot cross explicit breaks.
+ const costs=Array.from({length:count+1},()=>new Float64Array(61).fill(Infinity));
+ const next=Array.from({length:count},()=>new Uint32Array(61));costs[count][0]=0;
+ for(let i=count-1;i>=0;i--){
+  for(let j=i;j<Math.min(regionEnds[i],i+24);j++){
+   const h=height(allUnits[i].start,allUnits[j].end);if(h>capacity)break;
+   const crossed=index.headings.filter(b=>b.level<=2&&b.start>allUnits[i].start&&b.start<allUnits[j].end).length;
+   const score=100+300*(1-Math.min(1,h/capacity))**2+crossed*600;
+   for(let k=1;k<=Math.min(60,count-i);k++){
+    const value=score+costs[j+1][k-1];
+    if(value<costs[i][k]){costs[i][k]=value;next[i][k]=j+1;}
    }
   }
-  for(let i=0;i<units.length;){const end=next[i];if(end===undefined)throw new Error('这一段无法分页，请检查内容。');push(units[i].start,units[end-1].end);i=end;}
  }
+ const target=Math.max(1,Math.min(60,Math.floor(preferences?.target||9)));
+ let pages=0,best=Infinity;
+ for(let k=1;k<=60;k++){const score=costs[0][k]+1250*Math.max(0,k-target)**2;if(score<best){best=score;pages=k;}}
+ if(!pages)throw new Error('超过 60 页或内容无法在当前字号内分页，请拆成多篇作品。');
+ for(let i=0,k=pages;i<count;k--){const end=next[i][k];if(end<=i)throw new Error('这一段无法分页，请检查内容。');push(allUnits[i].start,allUnits[end-1].end);i=end;}
  return result;
 }

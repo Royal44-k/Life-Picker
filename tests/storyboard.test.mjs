@@ -63,3 +63,10 @@ test('auto-directory accepts four real sections and ignores headings inside code
  assert.equal((await run(source)).pages.length,8);
  await assert.rejects(()=>run('```md\n'+source+'\n```'),/目录/);
 });
+
+test('purpose is validated, echoed and guides AI without inventing product evidence',async()=>{
+ const settings={target:6,cover:false,toc:'no',ending:'none',purpose:'product'};let prompt;
+ const result=await generateStoryboard({...input,settings},config,async(_,options)=>{prompt=JSON.stringify(JSON.parse(options.body).messages);return Response.json({choices:[{message:{content:JSON.stringify({pages:[good.pages[1]]})},finish_reason:'stop'}]});});
+ assert.equal(result.settings.purpose,'product');assert.match(prompt,/产品介绍/);assert.match(prompt,/可核实/);
+ assert.throws(()=>validateStoryboardInput({...input,settings:{...settings,purpose:'viral'}}),/用途|设置/);
+});

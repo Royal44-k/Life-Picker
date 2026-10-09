@@ -15,13 +15,17 @@ export function planStory(source:string,options:CardOptions,settings:StorySettin
   const title=documentTitle(source);const pages:StoryPage[]=[];const warnings:string[]=[];
   if(source.trim()){
     if(settings.cover)pages.push(newPage(title,'cover',['title']));
-    const parts=paginateSource(source,options,measure);
+    const headings=indexSource(source).headings.filter(b=>b.level===2);
+    const auxiliary=Number(settings.cover)+Number(settings.ending!=='none');
+    let includeToc=settings.toc==='yes'&&headings.length>0;
+    const paginate=()=>paginateSource(source,options,measure,false,{target:Math.max(1,(settings.target||9)-auxiliary-Number(includeToc))});
+    let parts=paginate();
+    if(!includeToc&&settings.toc!=='no'&&headings.length>=4&&parts.length+auxiliary>=8){includeToc=true;parts=paginate();}
     for(const part of parts){
       const page=newPage(part.text,'body',[...new Set(part.references.map(r=>r.blockId))]);
       page.codeContinuation=part.codeContinuation;page.sourceRanges=part.references;page.sourceVersion=hashText(source);pages.push(page);
     }
-    const headings=indexSource(source).headings.filter(b=>b.level===2);
-    if(settings.toc==='yes'||(settings.toc!=='no'&&headings.length>=4&&pages.length>=8)){
+    if(includeToc){
       if(headings.length){
         const toc=newPage('## 这一篇，慢慢读\n\n'+headings.map((h,i)=>(i+1)+'. '+h.label).join('\n'),'toc',headings.map(h=>h.id));
         toc.tocEntries=headings.flatMap(h=>{const target=pages.find(p=>p.role==='body'&&p.sourceRanges?.some(r=>r.blockId===h.id&&r.start<=h.start));return target?[{label:h.label,targetPageId:target.id,occurrence:headings.filter(other=>other.label===h.label&&other.start<h.start&&target.sourceIds.includes(other.id)).length}]:[];});

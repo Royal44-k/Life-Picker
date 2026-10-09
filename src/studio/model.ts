@@ -5,7 +5,8 @@ import type {TemplateId} from './templates.ts';
 import type { CardOptions, CardLine } from '../core/types.ts';
 export type Diagram = 'none'|'pyramid'|'steps'|'compare'|'timeline'|'checklist';
 export type Role = 'cover'|'toc'|'body'|'diagram'|'ending';
-export interface StorySettings { target:0|6|9; cover:boolean; ending:'none'|'question'|'follow'|'collect'; toc?:'auto'|'yes'|'no' }
+export type StoryPurpose = 'knowledge'|'tutorial'|'life'|'product';
+export interface StorySettings { purpose?:StoryPurpose; target:0|6|9; cover:boolean; ending:'none'|'question'|'follow'|'collect'; toc?:'auto'|'yes'|'no' }
 export interface TocEntry {label:string;targetPageId:string;occurrence?:number}
 export interface StoryPage { retainedFromPrevious?:boolean; template?:TemplateId; tocEntries?:TocEntry[]; sourceVersion?:string; sourceRanges?:{blockId:string;start:number;end:number}[]; codeContinuation?:boolean; id:string; role:Role; source:string; sourceIds:string[]; locked:boolean; diagram:Diagram; assetId?:string; fit:'cover'|'contain'; focusX:number; focusY:number; layout:'plain'|'quote'|'photo'; }
 export interface Story { compiledSource?:string; series?:SeriesSnapshot; publication?:Publication; inspiration?:InspirationOrigin; version:2; id:string; revision:number; source:string; sourceHash:string; title:string; options:CardOptions; settings:StorySettings; pages:StoryPage[]; warnings:string[]; updatedAt:number; }
