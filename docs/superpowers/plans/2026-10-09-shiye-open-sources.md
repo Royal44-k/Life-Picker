@@ -31,9 +31,9 @@
 ### Task 3: 可控视觉建议与交付
 **Files:** server/visual-ai.mjs; server/ai.mjs; src/studio/VisualAI.tsx; Studio.tsx; tests/visual-ai*. Tests/release docs/guide.
 **Interfaces:** constrained schema theme/template/accent/reason; never arbitrary code/text rewriting; source/options/pages fingerprint.
-- [ ] RED schema, selected-content-only, unsupportedIDs/color, no-op and stale/locked safeguards. Add metered optional DeepSeek proposal and before/after preview. Explicit apply updates styles only; undo/history works. Expected focused tests and browser PASS.
-- [ ] Full unit, impacted sources/studio/navigation/storage, build and production offline template/PNG. Independent final review, fix important findings RED→GREEN, preserve v1.7/tag/archive and update local origin.
-- [ ] Record actual login/AI/device limitations and continue companion/storyboard explanations and full memory narrative. No final-goal completion claim here.
+- [x] RED schema, selected-content-only, unsupportedIDs/color, no-op and stale/locked safeguards. Add metered optional DeepSeek proposal and before/after preview. Explicit apply updates styles only; undo/history works. Expected focused tests and browser PASS.
+- [x] Full unit, impacted sources/studio/navigation/storage, build and production offline template/PNG. Independent final review, fix important findings RED→GREEN, preserve v1.7/tag/archive and update local origin.
+- [x] Record actual login/AI/device limitations and continue companion/storyboard explanations and full memory narrative. No final-goal completion claim here.
 
 ## Rulings
 XHS details are intentionally not exposed: fixed upstream detail handler internally retries and prints token-bearing URLs. List/search metadata supplies bounded inspiration references without copying note bodies/comments; date remains unknown. General transport failure stops rather than retries.

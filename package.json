@@ -35,7 +35,7 @@
     "test:layout": "node --experimental-strip-types --test tests/layout-diagnostics.test.ts && node tests/layout-checks-browser.mjs",
     "test:split": "node --experimental-strip-types --test tests/split-works.test.ts && node tests/split-works-storage.mjs && node tests/split-works-browser.mjs",
     "setup:xhs": "node --use-env-proxy scripts/setup-xhs.mjs",
-    "test:open-sources": "node tests/open-templates-browser.mjs && node tests/xhs-browser.mjs && node tests/visual-ai-browser.mjs"
+    "test:open-sources": "node tests/open-templates-browser.mjs && node tests/xhs-browser.mjs && node tests/visual-ai-browser.mjs && node tests/open-template-save-browser.mjs"
   },
   "dependencies": {
     "exifr": "7.1.3",
