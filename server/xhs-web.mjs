@@ -78,9 +78,9 @@ export async function readXhsSearch(page,input,signal){
  const initial=guarded(await page.evaluate(visibleXhsPage));if(!initial.loggedIn)throw new XhsError('needs_login');
  const box=page.getByRole('textbox');if(await box.count()!==1)throw new XhsError();
  await box.fill(input.keyword.trim());await box.press('Enter');check();
- const filter=page.getByText('筛选',{exact:true});await filter.waitFor({timeout:18000});check();
+ const filter=page.locator('.filter').first();await filter.waitFor({timeout:18000});check();
  if(input.recent){
-  await filter.hover();
+  await filter.hover({timeout:8000});
   for(const [group,label]of [['排序依据','最新'],['笔记类型','图文'],['发布时间','一周内']]){
    check();await filter.hover();
    const row=page.locator('.filter-panel .filters').filter({has:page.getByText(group,{exact:true})});

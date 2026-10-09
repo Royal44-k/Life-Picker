@@ -1,7 +1,7 @@
 {
   "name": "shiye-card-studio",
   "private": true,
-  "version": "1.9.0",
+  "version": "1.10.0",
   "type": "module",
   "scripts": {
     "dev": "node --use-env-proxy server/index.mjs",
@@ -34,7 +34,7 @@
     "test:purpose": "node --experimental-strip-types --test tests/purpose-pagination.test.ts && node tests/purpose-browser.mjs",
     "test:layout": "node --experimental-strip-types --test tests/layout-diagnostics.test.ts && node tests/layout-checks-browser.mjs",
     "test:split": "node --experimental-strip-types --test tests/split-works.test.ts && node tests/split-works-storage.mjs && node tests/split-works-browser.mjs",
-    "setup:xhs": "node --use-env-proxy scripts/setup-xhs.mjs",
+    "setup:xhs": "node scripts/setup-xhs-web.mjs",
     "test:open-sources": "node tests/open-templates-browser.mjs && node tests/xhs-browser.mjs && node tests/visual-ai-browser.mjs && node tests/open-template-save-browser.mjs",
     "test:page-guide": "node --experimental-strip-types --test tests/page-guide.test.ts && node tests/page-guide-browser.mjs",
     "test:narrative": "node tests/memory-narrative-browser.mjs",
