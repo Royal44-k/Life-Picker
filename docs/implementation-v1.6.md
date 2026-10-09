@@ -24,23 +24,23 @@
 ### Task 1: 持久历史与恢复
 **Files:** src/studio/history.ts, database.ts, HistoryPanel.tsx, Studio.tsx; tests/story-history-storage.mjs, story-history-browser.mjs.
 **Interfaces:** listStoryHistory(id), checkpointStory(id, expected), restoreStoryHistory(id, entryId, expected), clearStoryHistory(id, expected). saveStory(story, expected, checkpoint=false) atomically saves current + history in meta.
-- [ ] Write/run storage tests: old revision survives refresh; restoration keeps current as recovery point; stale restore refuses; missing image/failed transaction leave both unchanged; 30-entry bound; typing coalesces; history photo blocks permanent deletion. Expected initially FAIL because APIs absent.
-- [ ] Implement bounded validated history, transaction integration, image usage protection; add history dialog with preview, manual checkpoint, restore and explicit clear.
-- [ ] Run storage/browser tests and npm test. Expected PASS; commit Task 1.
+- [x] Write/run storage tests: old revision survives refresh; restoration keeps current as recovery point; stale restore refuses; missing image/failed transaction leave both unchanged; 30-entry bound; typing coalesces; history photo blocks permanent deletion. Expected initially FAIL because APIs absent.
+- [x] Implement bounded validated history, transaction integration, image usage protection; add history dialog with preview, manual checkpoint, restore and explicit clear.
+- [x] Run storage/browser tests and npm test. Expected PASS; commit Task 1.
 
 ### Task 2: 来源局部更新
 **Files:** src/studio/source-update.ts, SourceUpdatePanel.tsx, model.ts, backup.ts, planner.ts, Studio.tsx; tests/source-update.test.ts, source-update-browser.mjs.
 **Interfaces:** buildSourceUpdate(story, measure) -> plan with base fingerprint and rows; applySourceUpdate(story, plan, choices) -> Story. compiledSource?: string tracks confirmed original, compatible with old stories.
-- [ ] Write/run tests: unchanged edited pages survive; changed/deleted/inserted paragraphs require resolution; locked pages kept; ambiguous old sources require review; stale plan rejected; no duplicated unchanged content; backup round-trip. Expected FAIL before implementation.
-- [ ] Implement source-index comparison and per-page choices, preserve immutable photo/layout identities; affected groups display old/new text and include/keep/remove decision with locked retention.
-- [ ] Add dialog before rebuilding existing story; keep first generation simple. Run focused browser + unit + npm test. Expected PASS; commit Task 2.
+- [x] Write/run tests: unchanged edited pages survive; changed/deleted/inserted paragraphs require resolution; locked pages kept; ambiguous old sources require review; stale plan rejected; no duplicated unchanged content; backup round-trip. Expected FAIL before implementation.
+- [x] Implement source-index comparison and per-page choices, preserve immutable photo/layout identities; affected groups display old/new text and include/keep/remove decision with locked retention.
+- [x] Add dialog before rebuilding existing story; keep first generation simple. Run focused browser + unit + npm test. Expected PASS; commit Task 2.
 
 ### Task 3: AI 设置一致性
 **Files:** server/storyboard.mjs, src/studio/StoryboardAI.tsx, src/studio/storyboard-settings.ts; tests/storyboard.test.mjs, storyboard-settings.test.ts, studio-ai-settings-browser.mjs.
 **Interfaces:** settings includes cover/toc/ending/target; request fingerprint includes source + options/settings/pages. Server validates options, passes explicit guidance and rejects prohibited roles; missing enabled cover/ending reported as invalid rather than silently discarding source content.
-- [ ] Write/run tests for no cover/no TOC/no ending, requested ending, invalid enums, settings sent from browser, stale suggestion invalidation. Expected FAIL.
-- [ ] Implement consistent defaults for legacy API callers, structured guidance and server enforcement; client verifies revision and rejects old results. No secret exposure or automatic repeat calls.
-- [ ] Run server, browser and full unit suite; build, relevant storage/UI regression; commit Task 3.
+- [x] Write/run tests for no cover/no TOC/no ending, requested ending, invalid enums, settings sent from browser, stale suggestion invalidation. Expected FAIL.
+- [x] Implement consistent defaults for legacy API callers, structured guidance and server enforcement; client verifies revision and rejects old results. No secret exposure or automatic repeat calls.
+- [x] Run server, browser and full unit suite; build, relevant storage/UI regression; commit Task 3.
 
 ### Task 4: 验收与保留
 **Files:** docs/release-v1.6.md, docs/shiye-final-scope.md, public/guide-v1.6.html, version labels and cache build.

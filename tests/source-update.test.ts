@@ -54,3 +54,17 @@ test('new explicit page breaks require confirmation and keeping old manual order
  const update=buildSourceUpdate(reordered),result=applySourceUpdate(reordered,update,Object.fromEntries(update.rows.filter(r=>r.status!=='unchanged').map(r=>[r.id,'replace'])));
  assert.match(result.pages[0].source,/乙的新经历/);assert.match(result.pages[1].source,/甲的原文/);
 });
+
+test('unchanged or explicitly kept continuation groups preserve interleaved manual page order',()=>{
+ const source='## 长记录\n\n'+'甲的经历与观察。'.repeat(280)+'\n\n---\n\n## 另一个角度\n\n单独保留的片段。';
+ const story=planStory(source,DEFAULT_OPTIONS,settings);assert.ok(story.pages.length>3);
+ const last=story.pages.pop()!;story.pages.splice(1,0,last);
+ const expected=story.pages.map(p=>p.id);
+ const unchanged=buildSourceUpdate(story);assert.ok(unchanged.rows.every(r=>r.status==='unchanged'));
+ assert.deepEqual(applySourceUpdate(story,unchanged,{}).pages.map(p=>p.id),expected);
+ const edited={...story,source:source.replaceAll('甲的经历','乙的新经历')};
+ const changed=buildSourceUpdate(edited),choices=Object.fromEntries(changed.rows.filter(r=>r.status!=='unchanged').map(r=>[r.id,'keep']));
+ assert.deepEqual(applySourceUpdate(edited,changed,choices).pages.map(p=>p.id),expected);
+ const appended=applySourceUpdate(edited,changed,Object.fromEntries(changed.rows.filter(r=>r.status!=='unchanged').map(r=>[r.id,'append'])));
+ assert.deepEqual(appended.pages.filter(p=>expected.includes(p.id)).map(p=>p.id),expected);
+});

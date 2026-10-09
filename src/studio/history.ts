@@ -14,7 +14,7 @@ export function readHistory(value:unknown,id:string):StoryHistoryRow{
  }
  return structuredClone(row);
 }
-function structure(s:Story){return JSON.stringify([s.options,s.settings,s.pages.map(p=>[p.id,p.role,p.assetId,p.template,p.diagram,p.locked]),s.series]);}
+function structure(s:Story){const {author:_author,series:_series,...layout}=s.options;return JSON.stringify([layout,s.settings,s.pages.map(p=>[p.id,p.role,p.assetId,p.template,p.diagram,p.locked]),s.series]);}
 export function archiveHistory(row:StoryHistoryRow,old:Story|undefined,next:Story,force=false,now=Date.now()):StoryHistoryRow{
  if(!old)return row;
  const structural=structure(old)!==structure(next),last=row.entries.at(-1);

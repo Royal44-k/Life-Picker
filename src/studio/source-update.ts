@@ -65,19 +65,23 @@ function rebase(page:StoryPage,story:Story):StoryPage{
 }
 export function applySourceUpdate(story:Story,plan:SourceUpdatePlan,choices:Record<string,string>):Story{
  if(fingerprint(story)!==plan.fingerprint)throw new Error('作品或原文已变化，请重新检查更新。');
- const pages:StoryPage[]=[];
+ const placed:{page:StoryPage;position:number}[]=[];
+ const place=(page:StoryPage,position:number)=>placed.push({page,position});
  for(const row of plan.rows){
-  if(row.status==='unchanged'){pages.push(...row.oldPages.map(p=>rebase(p,story)));continue;}
+  if(row.status==='unchanged'){row.oldPages.forEach(p=>place(rebase(p,story),story.pages.indexOf(p)));continue;}
   const choice=choices[row.id];if(!['keep','replace','append'].includes(choice))throw new Error('请为每组受影响页面选择处理方式，再确认更新。');
   if(choice==='replace'&&row.locked)throw new Error('页面已锁定，请先解锁，或明确保留旧页。');
-  if(choice==='keep'||choice==='append')pages.push(...row.oldPages.map(retained));
+  if(choice==='keep'||choice==='append')row.oldPages.forEach(p=>place(retained(p),story.pages.indexOf(p)));
   if(choice==='replace'||choice==='append'){
    const next=row.newPages.map(p=>{
     const old=choice==='replace'&&row.oldPages.length===1&&row.newPages.length===1?row.oldPages[0]:undefined;
     return old?{...p,id:old.id,assetId:old.assetId,fit:old.fit,focusX:old.focusX,focusY:old.focusY,template:old.template,layout:old.layout,diagram:old.diagram}:p;
-   });pages.push(...next);
+   });
+   const start=choice==='append'&&row.oldPages.length?Math.max(...row.oldPages.map(p=>story.pages.indexOf(p)))+.25:row.position;
+   next.forEach((p,i)=>place(p,choice==='replace'&&row.oldPages.length===next.length?story.pages.indexOf(row.oldPages[i]):start));
   }
  }
+ const pages=placed.sort((a,b)=>a.position-b.position).map(item=>item.page);
  if(pages.length>60)throw new Error('确认后超过 60 页，请减少新增内容或分成多篇。');
  // Directory entries derive from the chosen pages, including handwritten headings.
  const tocEntries=pages.filter(content).flatMap(p=>{
