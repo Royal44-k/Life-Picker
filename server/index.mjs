@@ -38,7 +38,7 @@ const hosts=new Set(['localhost','127.0.0.1',...localIps]);
 const vite=production?null:await(await import('vite')).createServer({root,server:{middlewareMode:true,host:'0.0.0.0',hmr:false,watch:{ignored:['**/artifacts/**','**/.local/**','**/releases/**','**/docs/**','**/tests/**','**/.env*']}},appType:'spa'});
 const dist=resolve(root,'dist');
 if(production&&!existsSync(resolve(dist,'index.html'))){console.error('请先运行 npm run build 生成应用。');process.exit(1);}
-const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json','.webmanifest':'application/manifest+json','.png':'image/png','.svg':'image/svg+xml'};
+const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json','.webmanifest':'application/manifest+json','.png':'image/png','.svg':'image/svg+xml','.txt':'text/plain; charset=utf-8'};
 const server=createServer(async(req,res)=>{
   const hostname=(req.headers.host||'').split(':')[0];
   if(!hosts.has(hostname)){res.writeHead(403);res.end('Host not allowed');return;}

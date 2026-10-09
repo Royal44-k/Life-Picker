@@ -1,7 +1,7 @@
 import {useMemo,useState} from 'react';
 import {Modal} from '../components/Modal.tsx';
 import {ScenePreview} from './ScenePreview.tsx';
-import {TEMPLATES,applyTemplate} from './templates.ts';
+import {ALL_TEMPLATES,applyTemplate} from './templates.ts';
 import type {TemplateId} from './templates.ts';
 import type {Story} from './model.ts';
 import {newPage} from './planner.ts';
@@ -10,7 +10,7 @@ import {createMeasure} from '../core/renderer.ts';
 export function TemplateGallery({story,initialId,onClose,onApply}:{story:Story;initialId:string;onClose:()=>void;onApply:(id:string,template:TemplateId)=>boolean}){
  const [id,setId]=useState(initialId||story.pages[0]?.id||''),[selected,setSelected]=useState<TemplateId>('headline');
  const page=story.pages.find(p=>p.id===id);
- const samples=useMemo(()=>TEMPLATES.map(t=>({template:t,scene:layoutStory({...story,pages:[{...newPage(t.sample),template:t.id}],settings:{...story.settings,target:0}},createMeasure(story.options))[0]})),[story.options]);
+ const samples=useMemo(()=>ALL_TEMPLATES.map(t=>({template:t,scene:layoutStory({...story,pages:[{...newPage(t.sample),template:t.id}],settings:{...story.settings,target:0}},createMeasure(story.options))[0]})),[story.options]);
  const preview=useMemo(()=>{
   if(!page)return {scenes:[],error:'请先生成分镜。'};
   if(page.locked||page.tocEntries)return {scenes:[],error:page.locked?'本页已锁定，请先解锁再换模板。':'自动目录保持目录布局；可选择正文页。'};

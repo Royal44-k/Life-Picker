@@ -5,5 +5,7 @@ export const THEMES: Theme[] = [
   {id:'editorial',name:'纸间',description:'留白 · 深度表达',paper:'#FBF9F3',ink:'#342F2B',muted:'#978C7B',accent:'#A25F3A',wash:'#EFE6D6',serif:true},
   {id:'forest',name:'青野',description:'自然 · 日常灵感',paper:'#EDF3EE',ink:'#293E36',muted:'#7E9585',accent:'#427762',wash:'#D8E6DC',serif:false},
   {id:'midnight',name:'夜航',description:'沉静 · 观点笔记',paper:'#262B42',ink:'#F2F1FA',muted:'#A9ACC2',accent:'#C8BAF4',wash:'#353A54',serif:false},
+  {id:'gaia',name:'暖纸',description:'Marp Gaia · MIT 适配',paper:'#FFF8E1',ink:'#455A64',muted:'#637782',accent:'#0288D1',wash:'#E4ECEF',serif:false},
+  {id:'white',name:'白纸',description:'reveal White · MIT 适配',paper:'#FFFFFF',ink:'#222222',muted:'#636B75',accent:'#2A76DD',wash:'#EBF1FA',serif:false},
 ];
 export const getTheme = (id: ThemeId) => THEMES.find(t => t.id === id) || THEMES[0];

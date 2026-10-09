@@ -9,6 +9,8 @@ export function templateContract(id?:TemplateId):TemplateContract{
  const semantic=!!id&&['steps','checklist','compare','data','timeline','summary'].includes(id);
  const geometry=(height:number,role:Role)=>{
   let x=88,width=904,top=190,scale=1,large=role==='cover';
+  if(id==='gaia'){x=118;width=844;top=role==='cover'?height*.28:212;large=role==='cover';}
+  if(id==='white'){x=96;width=888;top=role==='cover'?height*.23:204;large=role==='cover';}
   if(id==='headline'){top=height*.27;large=true;width=850;}
   if(id==='quote'){x=168;width=740;top=height*.26;scale=1.12;large=false;}
   if(id==='reading'){x=142;width=796;top=238;large=false;}

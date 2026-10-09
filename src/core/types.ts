@@ -1,4 +1,4 @@
-export type ThemeId = 'lavender' | 'editorial' | 'forest' | 'midnight';
+export type ThemeId = 'lavender' | 'editorial' | 'forest' | 'midnight' | 'gaia' | 'white';
 export type Ratio = 'portrait' | 'square' | 'story';
 export type BlockKind = 'heading' | 'paragraph' | 'list' | 'quote' | 'code' | 'break';
 export interface Block { kind: BlockKind; text: string; level?: number; marker?: string; emphasis?: boolean }

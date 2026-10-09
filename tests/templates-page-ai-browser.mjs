@@ -8,8 +8,8 @@ try{
  await page.goto(studioUrl());await page.getByRole('button',{name:'新建作品',exact:true}).click();
  await page.getByLabel('作品原文').fill('## 自己的观察\n\n我走了 3 公里。\n\n拍了 2 张照片。\n\n留下 1 个问题。');await page.getByRole('button',{name:'生成分镜',exact:true}).click();await page.getByText('已保存到本机',{exact:true}).waitFor();
  const original=await page.evaluate(async()=>{const db=await import('/src/studio/database.ts');return (await db.allStories()).find(s=>s.id===localStorage.getItem('shiye:studio:active'));});
- await page.getByRole('tab',{name:'样式',exact:true}).click();await page.getByRole('button',{name:'选择结构模板 · 12 种'}).click();
- assert.equal(await page.locator('.next-template-grid>button').count(),12);await page.getByLabel('模板目标分镜').selectOption(original.pages[1].id);
+ await page.getByRole('tab',{name:'样式',exact:true}).click();await page.getByRole('button',{name:'选择结构模板 · 14 种'}).click();
+ assert.equal(await page.locator('.next-template-grid>button').count(),14);await page.getByLabel('模板目标分镜').selectOption(original.pages[1].id);
  await page.getByRole('button',{name:'预览数字笔记模板'}).click();await page.getByRole('heading',{name:'套用你的内容后'}).scrollIntoViewIfNeeded();
  await page.screenshot({path:'artifacts/template-preview-mobile.jpg',type:'jpeg',quality:60});await page.getByRole('button',{name:'应用到第 2 分镜'}).click();await page.getByText('已保存到本机',{exact:true}).waitFor();
  const actual=await page.evaluate(async()=>{const db=await import('/src/studio/database.ts');return (await db.allStories()).find(s=>s.id===localStorage.getItem('shiye:studio:active'));});

@@ -1,0 +1,5 @@
+// Theme rule adaptations: source revisions and complete MIT notices are retained below.
+export const OPEN_DESIGNS=[
+ {id:'gaia',theme:'gaia',name:'暖纸讲义',hint:'暖白纸色与蓝色重点，适合知识分享',sample:'## 把观察，慢慢讲清楚\n\n先写下亲身经历，再说自己的发现。\n\n每一次具体的记录，都能成为下一篇的起点。',author:'Yuki Hattori / Marp team',source:'https://github.com/marp-team/marp-core/blob/fb41436e1db5b43a9f93d288ed361b2550408a0b/themes/gaia.scss',revision:'fb41436e1db5b43a9f93d288ed361b2550408a0b',license:'MIT',licenseUrl:'/licenses/marp-core-MIT.txt',modifications:'由 Gaia 的暖纸色板、标题层级与留白规则转写为移动 Canvas 封面和正文；调整页边距与字号，采用拾页本地字体，未引入外部字体、代码高亮或演示内容。'},
+ {id:'white',theme:'white',name:'白纸蓝标',hint:'黑白层级与蓝色强调，适合清晰表达',sample:'## 让一个重点，被看见\n\n这是一段属于自己的真实经历。\n\n写清楚发生了什么，再留下自己的理解。',author:'Hakim El Hattab / reveal.js contributors',source:'https://github.com/hakimel/reveal.js/blob/75dff6f515d2d08df0c32cf2b7328b89425c6f25/css/theme/white.scss',revision:'75dff6f515d2d08df0c32cf2b7328b89425c6f25',license:'MIT',licenseUrl:'/licenses/reveal-js-MIT.txt',modifications:'由 White 的白底黑字、蓝色强调与大标题层级转写为移动 Canvas 封面和正文；调整比例与边距，保留拾页本地字体，没有打包 reveal.js 运行时或字体。'}
+] as const;

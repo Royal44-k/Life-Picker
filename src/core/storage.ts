@@ -11,7 +11,7 @@ export function validateSource(source: string): string {
 export function isOptions(value: unknown): value is CardOptions {
   if (!value || typeof value !== 'object') return false;
   const v = value as CardOptions;
-  return ['lavender','editorial','forest','midnight'].includes(v.theme) && ['portrait','square','story'].includes(v.ratio)
+  return ['lavender','editorial','forest','midnight','gaia','white'].includes(v.theme) && ['portrait','square','story'].includes(v.ratio)
     && typeof v.fontScale === 'number' && v.fontScale >= .85 && v.fontScale <= 1.2
     && typeof v.author === 'string' && v.author.length <= 32 && typeof v.series === 'string' && v.series.length <= 40
     && typeof v.accent === 'string' && (v.accent === '' || /^#[\da-f]{6}$/i.test(v.accent));

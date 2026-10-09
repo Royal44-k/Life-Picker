@@ -1,3 +1,4 @@
+import {OPEN_DESIGNS} from './open-designs.ts';
 import {templateContract} from './template-contracts.ts';
 import type {Story,StoryPage,Scene,Shape} from './model.ts';
 export const TEMPLATES=[
@@ -14,8 +15,9 @@ export const TEMPLATES=[
  {id:'memo',name:'手写便笺',hint:'像纸上随手留下的念头',sample:'## 一个小想法\n\n不必等事情变得特别，才值得记下。\n\n今天也有自己的细节。'},
  {id:'summary',name:'成果小结',hint:'把结果和发现整理成块',sample:'## 回看这次尝试\n\n完成的事：留下真实的细节。\n\n新的发现：普通日常也值得表达。\n\n下一步：继续记录。'}
 ] as const;
-export type TemplateId=typeof TEMPLATES[number]['id'];
-export const templateExists=(id:unknown):id is TemplateId=>TEMPLATES.some(t=>t.id===id);
+export const ALL_TEMPLATES=[...TEMPLATES,...OPEN_DESIGNS];
+export type TemplateId=typeof ALL_TEMPLATES[number]['id'];
+export const templateExists=(id:unknown):id is TemplateId=>ALL_TEMPLATES.some(t=>t.id===id);
 export function applyTemplate(story:Story,id:string,template:TemplateId|undefined):Story{
  const page=story.pages.find(p=>p.id===id);if(!page)throw new Error('没有找到这一页。');
  if(page.locked)throw new Error('这一页已锁定，请先解锁。');
@@ -29,6 +31,8 @@ export function templateProfile(page:StoryPage,height:number){
 
 export function templateDecorate(scene:Scene,page:StoryPage):Scene{
  const shapes:Shape[]=[...scene.shapes];const {height}=scene;
+ if(page.template==='gaia')shapes.push({kind:'line',x:88,y:180,w:0,h:height-335,color:'accent'});
+ if(page.template==='white')shapes.push({kind:'line',x:96,y:174,w:888,h:0,color:'accent'});
  if(page.template==='headline')shapes.push({kind:'line',x:88,y:height-185,w:210,h:0,color:'accent'});
  if(page.template==='quote')shapes.push({kind:'rect',x:108,y:scene.lines[0]?.y||230,w:8,h:Math.min(220,height*.2),color:'accent'});
  if(page.template==='reading'){shapes.push({kind:'rect',x:114,y:175,w:852,h:height-330,color:'wash'});shapes.push({kind:'line',x:128,y:175,w:0,h:height-330,color:'accent'});}
