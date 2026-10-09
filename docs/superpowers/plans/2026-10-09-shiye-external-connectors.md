@@ -22,20 +22,20 @@
 ### Task 1: Real external providers
 **Files:** server/xhs-web.mjs, server/design-sources.mjs, tests/xhs-web.test.mjs, tests/design-sources.test.mjs; source-assets transient-connect handling only if reproduced.
 **Interfaces:** createXhsWebSession({profile,launch}) -> {runtime:{installed,stop,kind},transport:{request(op,input,signal)}}; createDesignSources({root,getStore,fetcher}) -> status/discover/import.
-- [ ] Tests RED: visible login/challenge/card validation/cancel/one browser; GitHub fixed endpoint/limits/license failure/dedupe/cancel.
-- [ ] Implement bounded normal-browser adapter with current DOM evidence, no hidden response/cookie/token reads; strictly selected recent filter or explicit refusal.
-- [ ] Implement no-key GitHub theme discovery and pinned license proof per candidate; pending-only imports.
-- [ ] Focused/full tests, commit.
+- [x] Tests RED: visible login/challenge/card validation/cancel/one browser; GitHub fixed endpoint/limits/license failure/dedupe/cancel.
+- [x] Implement bounded normal-browser adapter with current DOM evidence, no hidden response/cookie/token reads; strictly selected recent filter or explicit refusal.
+- [x] Implement no-key GitHub theme discovery and pinned license proof per candidate; pending-only imports.
+- [x] Focused/full tests, commit.
 
 ### Task 2: Existing application integration
 **Files:** server/index.mjs, source-api.mjs, xhs-collection.mjs; src/sources/PersonalXhs.tsx, DesignSources.tsx, Sources.tsx, types.ts; tests/connectors-browser.mjs.
-- [ ] Tests RED browser-login response and provider routes pairing/origin; implement switch to normal Edge, preserve previous private runtime files without running them.
-- [ ] Login button opens owner browser, explains shared local session and pending-only metadata. Existing cancel/schedule runs reuse chosen session; window-opening behavior disclosed.
-- [ ] Add GitHub candidate discovery/import beside existing source collection, label unadapted designs honestly and expose upstream license/source links.
-- [ ] Mobile mocked login/cancel/stale/dirty/import/dedupe/error and existing source regression, full tests/build, commit.
+- [x] Tests RED browser-login response and provider routes pairing/origin; implement switch to normal Edge, preserve previous private runtime files without running them.
+- [x] Login button opens owner browser, explains shared local session and pending-only metadata. Existing cancel/schedule runs reuse chosen session; window-opening behavior disclosed.
+- [x] Add GitHub candidate discovery/import beside existing source collection, label unadapted designs honestly and expose upstream license/source links.
+- [x] Mobile mocked login/cancel/stale/dirty/import/dedupe/error and existing source regression, full tests/build, commit.
 
 ### Task 3: Live owner workflow and delivery
-- [ ] User normal login once, preserve local profile. Check current visible feed and one recent keyword search; never send app-private records to source providers.
-- [ ] Run real fixed asset checks and GitHub discovery, inspect pending records and actual bytes. Failures exact and bounded, no repeated blind retries.
-- [ ] One fresh independent review and important fixes RED→GREEN; full tests/build and impacted browser/offline.
-- [ ] Preserve v1.9, release v1.10, merge locally, archive/hash; guide shows connected/remaining conditions and user actions accurately.
+- [x] User normal login once, preserve local profile. Check current visible feed and one recent keyword search; never send app-private records to source providers.
+- [x] Run real fixed asset checks and GitHub discovery, inspect pending records and actual bytes. Failures exact and bounded, no repeated blind retries.
+- [x] One fresh independent review and important fixes RED→GREEN; full tests/build and impacted browser/offline.
+- [x] Preserve v1.9, release v1.10, merge locally, archive/hash; guide shows connected/remaining conditions and user actions accurately.
