@@ -42,8 +42,8 @@
 **Interfaces:** splitWorkPlan(story,maxPages,measure) -> drafts and preview; saveSplitWorks(originalId,expectedRevision,drafts) atomic check + insert.
 - [x] Test splits at confirmed page boundaries, respects continuation groups where possible, originals and photo references unchanged, unique IDs/TOC remap, transaction failure creates none, CAS refuses outdated original, no accidental duplicate action. Expected RED.
 - [x] Preview titles and actual page counts; 6/9 choice; no content rewriting, create independent works linked to source work and optional current series. Original remains; mixed source/AI copy unchanged. Explain single oversized page before persistence; reject >10 outputs in one action.
-- [ ] Run all unit, appropriate storage/browser, build and production offline export, independent whole-branch review, fix important findings with RED→GREEN tests. Expected PASS.
-- [ ] Record real limits, preserve tag/archive, update same local origin. Continue next source/template expansion and companion narrative plan. Real iPhone/AI quality remain separate.
+- [x] Run all unit, appropriate storage/browser, build and production offline export, independent whole-branch review, fix important findings with RED→GREEN tests. Expected PASS.
+- [x] Record real limits, preserve tag/archive, update same local origin. Continue next source/template expansion and companion narrative plan. Real iPhone/AI quality remain separate.
 
 ## Plan rulings
 Existing complete design is approved and user explicitly requests ordered execution. This plan narrows one subsystem for review and delivery; it does not defer the remaining goal. Deterministic recommendations prefer evidence and user selection over automatic semantic assertions.
