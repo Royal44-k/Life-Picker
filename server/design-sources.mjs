@@ -5,17 +5,18 @@ import {parseSourceDraft,sourceIdentity} from './source-model.mjs';
 const hash=x=>createHash('sha256').update(x).digest('hex');
 const queries={marp:'marp theme license:mit archived:false',reveal:'reveal.js theme license:mit archived:false'};
 const cut=(s,n)=>Array.from(typeof s==='string'?s:'').reduce((x,c)=>x.length+c.length<=n?x+c:x,'');
+class DesignConnectionError extends Error {}
 async function json(fetcher,path,signal){
  const response=await fetcher('https://api.github.com'+path,{redirect:'error',signal,headers:{Accept:'application/vnd.github+json','User-Agent':'Shiye-Open-Design/1.10','X-GitHub-Api-Version':'2022-11-28'}});
- if(response.redirected)throw Error('GitHub 来源发生跳转，请稍后核对。');
- if([403,429].includes(response.status))throw Error('GitHub 暂时拒绝访问或触发匿名接口限流，请稍后手动重试。');
- if(!response.ok)throw Error('GitHub 接口暂不可用（HTTP '+response.status+'）。');
- if(!(response.headers.get('content-type')||'').includes('application/json'))throw Error('GitHub 响应格式变化。');
- if(Number(response.headers.get('content-length'))>1000000){await response.body?.cancel();throw Error('GitHub 响应过大。');}
- if(!response.body)throw Error('GitHub 响应为空。');const reader=response.body.getReader(),chunks=[];let size=0;
- try{while(true){signal.throwIfAborted();const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>1000000)throw Error('GitHub 响应过大。');chunks.push(value);}}
+ if(response.redirected)throw new DesignConnectionError('GitHub 来源发生跳转，请稍后核对。');
+ if([403,429].includes(response.status))throw new DesignConnectionError('GitHub 暂时拒绝访问或触发匿名接口限流，请稍后手动重试。');
+ if(!response.ok){if(response.status===404)throw Error('候选许可不存在。');throw new DesignConnectionError('GitHub 接口暂不可用（HTTP '+response.status+'）。');}
+ if(!(response.headers.get('content-type')||'').includes('application/json'))throw new DesignConnectionError('GitHub 响应格式变化。');
+ if(Number(response.headers.get('content-length'))>1000000){await response.body?.cancel();throw new DesignConnectionError('GitHub 响应过大。');}
+ if(!response.body)throw new DesignConnectionError('GitHub 响应为空。');const reader=response.body.getReader(),chunks=[];let size=0;
+ try{while(true){signal.throwIfAborted();const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>1000000)throw new DesignConnectionError('GitHub 响应过大。');chunks.push(value);}}
  catch(e){await reader.cancel().catch(()=>{});throw e;}finally{reader.releaseLock();}
- try{return JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{throw Error('GitHub 响应无法解析。');}
+ try{return JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{throw new DesignConnectionError('GitHub 响应无法解析。');}
 }
 export async function createDesignSources({root,getStore,fetcher=fetch,now=Date.now}){
  const folder=resolve(root);await mkdir(folder,{recursive:true});let active=false,candidates=new Map(),last={checkedAt:null,kind:'marp',results:[],failures:0,partial:false,error:''};
@@ -27,7 +28,7 @@ export async function createDesignSources({root,getStore,fetcher=fetch,now=Date.
    const deadline=AbortSignal.any([AbortSignal.timeout(80000),...(signal?[signal]:[])]),request=path=>json(fetcher,path,AbortSignal.any([deadline,AbortSignal.timeout(15000)]));
    try{
     const data=await request('/search/repositories?q='+encodeURIComponent(queries[input.kind])+'&per_page=6&sort=updated');
-    if(!data||!Array.isArray(data.items)||data.items.length>100)throw Error('GitHub 搜索结果格式变化。');
+    if(!data||!Array.isArray(data.items)||data.items.length>100)throw new DesignConnectionError('GitHub 搜索结果格式变化。');
     const found=new Map();let failures=0;const seen=new Set();
     for(const repo of data.items.slice(0,6)){
      deadline.throwIfAborted();const name=repo?.full_name;
@@ -45,7 +46,7 @@ export async function createDesignSources({root,getStore,fetcher=fetch,now=Date.
       deadline.throwIfAborted();const target=join(folder,key+'.json'),temp=target+'.'+randomUUID()+'.tmp';
       try{await writeFile(temp,JSON.stringify({repo:name,licenseBlob:l.sha,licenseSha256:digest,licenseText:legal,checkedAt:item.checkedAt}),{flag:'wx',mode:0o600});deadline.throwIfAborted();await rename(temp,target);}finally{await rm(temp,{force:true}).catch(()=>{});}
       found.set(key,{item,draft});
-     }catch(e){if(deadline.aborted)throw e;failures++;}
+     }catch(e){if(deadline.aborted||e instanceof DesignConnectionError||e instanceof TypeError)throw e;if(['TimeoutError','AbortError'].includes(e.name))throw new DesignConnectionError('GitHub 连接超时，请稍后手动重试。');failures++;}
     }
     deadline.throwIfAborted();candidates=found;last={checkedAt:now(),kind:input.kind,results:[...found.values()].map(x=>x.item),failures,partial:failures>0||data.incomplete_results===true,error:''};return {...status(),running:false};
    }catch(e){if(signal?.aborted)throw new DOMException('开放设计检查已取消。','AbortError');const message=deadline.aborted?'开放设计检查超时，请稍后手动重试。':e instanceof TypeError?'无法连接 GitHub，请稍后手动重试。':e.message;last={...last,error:message};throw Error(message);}

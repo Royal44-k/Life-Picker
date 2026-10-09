@@ -71,39 +71,58 @@ export function createXhsWebSession({profile,launch}){
  return {runtime:{kind:'visible-browser',installed:async()=>custom||['C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe','C:/Program Files/Microsoft/Edge/Application/msedge.exe'].some(existsSync),stop},transport:{request}};
 }
 
-export async function readXhsSearch(page,input,signal){
- const check=()=>signal?.throwIfAborted();check();
- await page.waitForLoadState('domcontentloaded',{timeout:30000});check();
+export async function readXhsSearch(page,input,signal,{timeoutMs=18000}={}){
+ const check=()=>signal?.throwIfAborted();
+ async function inspect(){
+  check();const v=await page.evaluate(visibleXhsPage);check();
+  if(v.challenge)throw new XhsError('challenged');if(v.restricted)throw new XhsError('restricted');if(v.login)throw new XhsError('needs_login');
+  return v;
+ }
+ async function until(predicate){
+  const end=Date.now()+timeoutMs;while(Date.now()<end){const v=await inspect();if(await predicate(v))return v;await new Promise(r=>setTimeout(r,100));}throw new XhsError();
+ }
+ async function refreshed(action,ready=async()=>true){
+  await inspect();
+  const watch=await page.evaluateHandle(()=>{
+   const nodes=()=>[...document.querySelectorAll('section.note-item')].filter(e=>e.getClientRects().length&&e.querySelector('a.title'));
+   const signature=()=>JSON.stringify(nodes().slice(0,24).map(e=>{const a=e.querySelector('a.title');return [new URL(a.href).pathname,a.innerText.trim()];}));
+   const originals=nodes(),removed=new Set(),baseline=signature();
+   const state={fresh:false,cleared:false,at:0,last:baseline,observer:null};
+   state.observer=new MutationObserver(records=>{
+    for(const r of records)for(const n of r.removedNodes)if(n.nodeType===1)for(const old of originals)if(n===old||n.contains(old))removed.add(old);
+    const current=nodes(),next=signature();if(originals.length&&!current.length)state.cleared=true;
+    const replaced=originals.length>0&&removed.size===originals.length;
+    const fresh=current.length>0&&(next!==baseline||state.cleared||replaced);
+    if(fresh&&(!state.fresh||next!==state.last))state.at=Date.now();
+    state.fresh=fresh;state.last=next;
+   });
+   state.observer.observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['href']});
+   return state;
+  });
+  try{
+   await inspect();await action();await inspect();
+   return await until(async v=>{const s=await watch.evaluate(s=>({fresh:s.fresh,cleared:s.cleared,at:s.at}));return await ready()&&(s.fresh&&Date.now()-s.at>=400&&v.cards.length>0||s.cleared&&v.empty);});
+  }finally{await watch.evaluate(s=>s.observer.disconnect()).catch(()=>{});await watch.dispose().catch(()=>{});}
+ }
+ check();await page.waitForLoadState('domcontentloaded',{timeout:30000});check();
  await page.locator('section.note-item a.title').first().waitFor({timeout:18000});check();
- const initial=guarded(await page.evaluate(visibleXhsPage));if(!initial.loggedIn)throw new XhsError('needs_login');
+ const initial=guarded(await inspect());if(!initial.loggedIn)throw new XhsError('needs_login');
  const box=page.getByRole('textbox');if(await box.count()!==1)throw new XhsError();
- await box.fill(input.keyword.trim());await box.press('Enter');check();
- const filter=page.locator('.filter').first();await filter.waitFor({timeout:18000});check();
+ await inspect();await box.fill(input.keyword.trim());
+ const filter=page.locator('.filter').first();
+ await refreshed(()=>box.press('Enter'),async()=>/^\/search_result(?:_ai)?$/.test(new URL(page.url()).pathname)&&await filter.isVisible());
  if(input.recent){
-  await filter.hover({timeout:8000});
   for(const [group,label]of [['排序依据','最新'],['笔记类型','图文'],['发布时间','一周内']]){
-   check();await filter.hover();
+   await inspect();await filter.hover({timeout:8000});await inspect();
    const row=page.locator('.filter-panel .filters').filter({has:page.getByText(group,{exact:true})});
    const target=row.getByText(label,{exact:true}).and(page.locator(':not([aria-hidden="true"], [aria-hidden="true"] *)'));
-   // Observe only our own DOM observer. A selected tag alone is not proof the old results refreshed.
-   const watch=await page.evaluateHandle(()=>{
-    const state={changed:false,at:0,observer:null};
-    const touches=node=>{const e=node.nodeType===1?node:node.parentElement;return !!e&&(e.matches('section.note-item')||e.closest('section.note-item')||e.querySelector('section.note-item'));};
-    state.observer=new MutationObserver(records=>{if(records.some(r=>touches(r.target)||[...r.addedNodes,...r.removedNodes].some(touches))){state.changed=true;state.at=Date.now();}});
-    state.observer.observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['href']});return state;
-   });
-   try{
-    await target.click({timeout:8000});
-    await page.waitForFunction(({group,label})=>[...document.querySelectorAll('.filter-panel .filters')].some(e=>e.querySelector(':scope > span')?.textContent===group&&[...e.querySelectorAll('.tags.active')].some(t=>!t.closest('[aria-hidden="true"]')&&t.textContent.trim()===label)),{group,label},{timeout:8000});check();
-    await page.waitForFunction(state=>state.changed&&Date.now()-state.at>500&&!!document.querySelector('section.note-item a.title'),watch,{timeout:18000});check();
-   }finally{await watch.evaluate(s=>s.observer.disconnect()).catch(()=>{});await watch.dispose().catch(()=>{});}
+   await refreshed(()=>target.click({timeout:8000}));
+   await until(()=>page.evaluate(({group,label})=>[...document.querySelectorAll('.filter-panel .filters')].some(e=>e.querySelector(':scope > span')?.textContent===group&&[...e.querySelectorAll('.tags.active')].some(t=>!t.closest('[aria-hidden="true"]')&&t.textContent.trim()===label)),{group,label}));
   }
-  const selected=await page.evaluate(()=>[...document.querySelectorAll('.filter-panel .filters')].flatMap(e=>[...e.querySelectorAll('.tags.active')].filter(t=>!t.closest('[aria-hidden="true"]')).map(t=>t.textContent.trim())));
+  await inspect();const selected=await page.evaluate(()=>[...document.querySelectorAll('.filter-panel .filters')].flatMap(e=>[...e.querySelectorAll('.tags.active')].filter(t=>!t.closest('[aria-hidden="true"]')).map(t=>t.textContent.trim())));
   if(!['最新','图文','一周内'].every(x=>selected.includes(x)))throw new XhsError();
- }else{
-  await page.locator('section.note-item a.title').first().waitFor({timeout:18000});check();
  }
- const result=await page.evaluate(visibleXhsPage);check();
- // Search has a different navigation. Authentication was checked above; an explicit login wall still wins.
- return parseVisibleXhs({...result,loggedIn:!result.login});
+ const result=await inspect();
+ // This request authenticated on the home page; a new login wall is checked throughout.
+ return parseVisibleXhs({...result,loggedIn:true});
 }
