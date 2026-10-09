@@ -15,3 +15,10 @@ for(const mode of ['stale','likes','search-challenge','filter-challenge'])test('
    const clicks=await p.evaluate(()=>window.testClicks);if(mode==='search-challenge')assert.equal(clicks,0);if(mode==='filter-challenge')assert.equal(clicks,1);if(mode==='likes')assert.equal(clicks,1);await p.close();
  }finally{await b.close();}
 });
+
+test('collapsed filter panels reopen before selection checks and subsequent filters',async()=>{
+ const b=await chromium.launch({channel:'msedge',headless:true});try{const p=await b.newPage();await p.route('https://www.xiaohongshu.com/**',r=>r.fulfill({body:'<html></html>',contentType:'text/html'}));await p.goto('https://www.xiaohongshu.com/explore');await p.setContent('<a href="/user/profile/660000000000000000000001">我</a><input aria-label="搜索"><section class="note-item"><a class="title" href="/explore/660000000000000000000002">起始</a></section><div id="filter-root"></div>');
+ await p.evaluate(()=>{let n=3;const selected=new Set();document.querySelector('input').onkeydown=e=>{if(e.key!=='Enter')return;history.pushState({},'', '/search_result');document.querySelector('.title').textContent='搜索结果';const root=document.querySelector('#filter-root');root.innerHTML='<div class="filter" style="margin-top:50px;width:100px">筛选</div>';root.querySelector('.filter').onmouseenter=()=>{if(root.querySelector('.filter-panel'))return;const panel=document.createElement('div');panel.className='filter-panel';panel.innerHTML=[['排序依据','最新'],['笔记类型','图文'],['发布时间','一周内']].map(([g,v])=>'<div class="filters"><span>'+g+'</span><div class="tags '+(selected.has(v)?'active':'')+'">'+v+'</div></div>').join('');root.append(panel);panel.querySelectorAll('.tags').forEach(t=>t.onclick=()=>{selected.add(t.textContent);panel.remove();setTimeout(()=>{const a=document.querySelector('.title');a.href='/search_result/66000000000000000000000'+n++;a.textContent='新结果'+n;},100);});};};});
+ const result=await readXhsSearch(p,{keyword:'读书笔记',recent:true},undefined,{timeoutMs:900});assert.equal(result.feeds[0].id,'660000000000000000000005');
+ }finally{await b.close();}
+});

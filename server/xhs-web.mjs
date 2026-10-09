@@ -110,13 +110,19 @@ export async function readXhsSearch(page,input,signal,{timeoutMs=18000}={}){
  const box=page.getByRole('textbox');if(await box.count()!==1)throw new XhsError();
  await inspect();await box.fill(input.keyword.trim());
  const filter=page.locator('.filter').first();
+ async function openFilter(){
+  // Result refreshes can unmount the hover panel while the pointer stays nearby.
+  await inspect();await box.hover({timeout:8000});await inspect();await filter.hover({timeout:8000});
+  await page.locator('.filter-panel').first().waitFor({state:'visible',timeout:8000});await inspect();
+ }
  await refreshed(()=>box.press('Enter'),async()=>/^\/search_result(?:_ai)?$/.test(new URL(page.url()).pathname)&&await filter.isVisible());
  if(input.recent){
   for(const [group,label]of [['排序依据','最新'],['笔记类型','图文'],['发布时间','一周内']]){
-   await inspect();await filter.hover({timeout:8000});await inspect();
+   await openFilter();
    const row=page.locator('.filter-panel .filters').filter({has:page.getByText(group,{exact:true})});
    const target=row.getByText(label,{exact:true}).and(page.locator(':not([aria-hidden="true"], [aria-hidden="true"] *)'));
    await refreshed(()=>target.click({timeout:8000}));
+   await openFilter();
    await until(()=>page.evaluate(({group,label})=>[...document.querySelectorAll('.filter-panel .filters')].some(e=>e.querySelector(':scope > span')?.textContent===group&&[...e.querySelectorAll('.tags.active')].some(t=>!t.closest('[aria-hidden="true"]')&&t.textContent.trim()===label)),{group,label}));
   }
   await inspect();const selected=await page.evaluate(()=>[...document.querySelectorAll('.filter-panel .filters')].flatMap(e=>[...e.querySelectorAll('.tags.active')].filter(t=>!t.closest('[aria-hidden="true"]')).map(t=>t.textContent.trim())));
