@@ -26,3 +26,6 @@ export type SourceCollectionStatus={ready:false;error:string}|{
  lastScheduledDay:string|null;lastSuccessAt:number|null;nextRunAt:number|null;timezone:string;time:string;mode:'local-computer';error:string|null;
  sources:{id:string;sourceId:string;title:string}[];personalXhs:{state:string;message:string};
 };
+
+export type PersonalXhsRun={id:string;reason:'manual'|'automatic';state:string;startedAt:number;finishedAt:number|null;added:number;duplicates:number;items:{id:string;title:string}[]};
+export type PersonalXhsStatus={ready:boolean;installed:boolean;state:string;message:string;running:boolean;enabled:boolean;verified:boolean;mode:'home'|'search';keyword:string;recent:boolean;lastSuccessAt:number|null;nextRunAt:number|null;latest:PersonalXhsRun|null;history:PersonalXhsRun[];timezone:string;time:string};

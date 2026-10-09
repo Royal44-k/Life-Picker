@@ -1,3 +1,6 @@
+import {createXhsRuntime,PINNED_XHS} from './xhs-runtime.mjs';
+import {createXhsTransport} from './xhs-transport.mjs';
+import {createXhsCollection} from './xhs-collection.mjs';
 import {createUsageStore} from './usage-store.mjs';
 import { createServer } from 'node:http';
 import { existsSync, readFileSync } from 'node:fs';
@@ -30,7 +33,9 @@ try{
  sourceAssets=await createPublicAssetCache({root:resolve(root,'.local/source-assets',String(port))});
  sourceJobs=await createSourceJobs({root:resolve(root,'.local/source-jobs',String(port)),getStore:()=>sourceStore,assets:sourceAssets});
 }catch{console.error('公开素材任务暂时无法启动，原任务文件保留。手动来源仍可管理。');}
-const sourceApi=createSourceHandler(sourceStore,pairCode,{assets:sourceAssets,jobs:sourceJobs,recover:async bundle=>{
+const xhsRuntime=createXhsRuntime({root:resolve(root,'.local/xhs-runtime',String(port)),binary:resolve(root,'.local/xhs-runtime/bin',PINNED_XHS.file)});
+let xhs=null;try{xhs=await createXhsCollection({root:resolve(root,'.local/xhs-state',String(port)),getStore:()=>sourceStore,transport:createXhsTransport({endpoint:xhsRuntime.endpoint}),runtime:xhsRuntime});}catch{console.error('个人来源状态暂时无法读取，已暂停连接，手动来源仍可使用。');}
+const sourceApi=createSourceHandler(sourceStore,pairCode,{assets:sourceAssets,jobs:sourceJobs,xhs,recover:async bundle=>{
  const result=await recoverSourceStore({root:sourceRoot,bundle});sourceStore=result.store;return result;
 }});
 const localIps=Object.values(networkInterfaces()).flat().filter(x=>x?.family==='IPv4'&&!x.internal).map(x=>x.address);
@@ -57,9 +62,10 @@ const server=createServer(async(req,res)=>{
     res.setHeader('Cache-Control',file.includes(`${sep}assets${sep}`)?'public, max-age=31536000, immutable':'no-cache');res.end(readFileSync(file));
   }catch{res.writeHead(400);res.end('Bad request');}
 });
-server.on('close',()=>sourceJobs?.close());
+server.on('close',()=>{sourceJobs?.close();xhs?.close();});
+for(const signal of ['SIGTERM','SIGINT'])process.once(signal,()=>{xhs?.close();sourceJobs?.close();server.close(()=>process.exit(0));setTimeout(()=>process.exit(0),1000).unref();});
 server.listen(port,'0.0.0.0',()=>{
-  sourceJobs?.startScheduler();
+  sourceJobs?.startScheduler();xhs?.startScheduler();
   console.log(`\n拾页已启动 · 保持此窗口运行\n电脑地址：http://localhost:${port}\n`);
   for(const ip of localIps)console.log(`iPhone 同一 Wi-Fi 打开：http://${ip}:${port}`);
   console.log(`\nAI 连接码：${pairCode}\nDeepSeek：${config.deepseekKey?'已配置':'尚未配置'}；Ollama：${config.ollamaModel||'尚未配置'}\n停止运行：Ctrl+C\n`);
