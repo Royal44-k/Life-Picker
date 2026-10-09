@@ -1,6 +1,6 @@
 # v1.6～v1.9 执行决定与验收记录
 
-此文件完整保留本轮实施时的取舍、代价、测试与独立复核记录。历史阶段的“待完成”须结合后面的最新记录阅读；当前范围见 shiye-final-scope.md。
+完整实施取舍、代价与验证记录，按实际执行顺序保留。各阶段历史“待完成”以最后阶段及shiye-final-scope.md为准。无未处理Minor；外部条件仍单列。
 
 ## implementation-v1.6
 
@@ -104,3 +104,12 @@ Task2 verification: new model/schema/provider modules observed missing-module RE
 Ruling: screenshot exposed missing independent scene-preview CSS on Memories; real canvas-width regression RED→GREEN and preview CSS scoped to memory page — cost is a small shared-style duplication until styles are extracted.
 Ruling: narrative is additive and requires review again after source changes; public copy separately exposes transitions/closing — costs extra confirmation/pages but preserves original selected snapshots.
 Task 2: complete (commits 438d560..62eef3d, tests: npm.cmd test → ℹ duration_ms 5437.8354)
+
+Task3 verification: final68asset build PASS; full12productionPWA scripts PASS;2navigation/6studio/9storage/pageguide/narrative/4video browsers PASS, including real H264/AAC MP4. Earlier2memory/3journal/usage flows also PASS. Final independent review running, actual metered model check pending main integration.
+
+Final review: fresh v19_narrative_review covered ddb772d..18eb57f;0Critical/0Important/0Minor. Independent14pure tests plus closed-modal late-result and wrong-revision browser checks PASS. No second review.
+Final: Ruling: reviewer did not independently rerun entire MP4/PWA suites, judge live model/iPhone/XHS/market, or audit final integration/archive and post-review docs; executor evidence and external acceptance remain separately stated — costs narrower independent evidence, no implied device/commercial certification.
+Final pre-integration:220/220 fullunit PASS; main remains exact v1.8 baseline, private config and prior archive receipts recorded without contents.
+
+Live verification:3/3 actual app-metered DeepSeek calls returned200 and valid structure/settings/revisions.1063input/326output tokens; estimatedCNY0.004734; no unknown fees, no retry. Ruling: narrative poetic inference is not established autobiographical fact, and visual reason can contain parameter labels; retain human editing/review and explicitly limit quality claim — costs review effort, no fact guarantee. No extra live call.
+Integration: main codex/local-final fast-forward to e006df0; main220/220 PASS; private.env and previousv18archive hashes unchanged; previousdist retained; main5173prodPID10244. Final source archive/published smoke pending.
