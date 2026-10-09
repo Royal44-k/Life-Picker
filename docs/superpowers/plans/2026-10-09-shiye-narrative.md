@@ -40,3 +40,13 @@
 Narrative is connective text beside original snapshots, not an automatic rewrite of journal records. It costs more readable pages but preserves personal evidence; short videos may need an explicitly smaller album, with original kept.
 Existing approved architecture uses SVG/CSS Xiaoshi and local evidence rules; adding a paid avatar platform would not improve these concrete flows.
 
+
+## Concrete narrative contract (implementation ruling)
+- MemoryAlbum keeps optional intro for old backups and adds optional narrative {version:1,basis:string,connections:[{entryId,text}],closing:string,reviewed:boolean,origin:'manual'|'ai',model?:string}. Connections follow every item ID exactly, including empty strings; max 350 chars each, closing max 800. AI draft {opening,connections,closing}; opening max 800 for model generation, manual editor keeps old 4000-char intro compatibility.
+- memoryBasis binds title and complete item snapshots, including dates/order/IDs/photos; narrativeVersion additionally binds opening/current narrative for pending edits. Editing source items reconciles connections by ID but invalidates review. It does not delete the draft.
+- The local narrative dialog shows each selected original snapshot beside its transition, editable opening/closing, optional actual page previews, an explicit human-review checkbox, and applies to the album draft. Existing Save and confirm persists before export. No background model requests; whole-album selected text/date/photo counts disclosed, no image pixels/tags/unselected records sent.
+- New /api/memory-narrative shares pairing, timeouts and usage accounting (feature memory). Model output must match exact item identity/order, no arbitrary code. Single request only; no retries or invented facts promised. Numeric/date fact certainty still requires user review.
+- memoryToStory inserts transitions before the matching unchanged item and adds an optional closing section. Image/public-work/video all reuse this function and reject stale/unreviewed narrative. Legacy albums without narrative produce the existing result.
+- Public-copy editor exposes transition/closing text and source changes invalidate its confirmation. Reconfirm after reviewing current content, or explicitly remove transitions/closing (opening stays separately editable). Private original album remains intact.
+- Backup restore remaps connection entry IDs and refreshes basis only if the old basis was valid; an already stale draft remains unreviewed. All old packages remain supported. No database schema bump needed.
+
