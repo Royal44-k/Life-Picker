@@ -73,6 +73,7 @@ export function createXhsWebSession({profile,launch}){
 
 export async function readXhsSearch(page,input,signal){
  const check=()=>signal?.throwIfAborted();check();
+ await page.waitForLoadState('domcontentloaded',{timeout:30000});check();
  await page.locator('section.note-item a.title').first().waitFor({timeout:18000});check();
  const initial=guarded(await page.evaluate(visibleXhsPage));if(!initial.loggedIn)throw new XhsError('needs_login');
  const box=page.getByRole('textbox');if(await box.count()!==1)throw new XhsError();
@@ -87,9 +88,9 @@ export async function readXhsSearch(page,input,signal){
    // Observe only our own DOM observer. A selected tag alone is not proof the old results refreshed.
    const watch=await page.evaluateHandle(()=>{
     const state={changed:false,at:0,observer:null};
-    const touches=node=>node.nodeType===1&&(node.matches('section.note-item')||node.closest('section.note-item')||node.querySelector('section.note-item'));
+    const touches=node=>{const e=node.nodeType===1?node:node.parentElement;return !!e&&(e.matches('section.note-item')||e.closest('section.note-item')||e.querySelector('section.note-item'));};
     state.observer=new MutationObserver(records=>{if(records.some(r=>touches(r.target)||[...r.addedNodes,...r.removedNodes].some(touches))){state.changed=true;state.at=Date.now();}});
-    state.observer.observe(document.body,{childList:true,subtree:true,characterData:true});return state;
+    state.observer.observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['href']});return state;
    });
    try{
     await target.click({timeout:8000});
