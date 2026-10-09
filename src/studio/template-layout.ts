@@ -32,7 +32,7 @@ export function templateLayout(page:StoryPage,story:Story,measure:MeasureText,ba
    if(i<blocks.length-1)shapes.push({kind:'line',x:120,y:y+32,w:0,h:slot-15,color:'wash'});
   }else if(id==='steps'){
    shapes.push({kind:'rect',x:88,y,w:72,h:66,color:'wash'});
-   lines.push({text:String(i+1).padStart(2,'0'),x:101,y:y+10,size:32,lineHeight:45,kind:'paragraph',weight:700});
+   lines.push({decoration:true,text:String(i+1).padStart(2,'0'),x:101,y:y+10,size:32,lineHeight:45,kind:'paragraph',weight:700});
    shapes.push({kind:'line',x:188,y:y+slot-18,w:780,h:0,color:'wash'});
   }else if(id==='summary'){
    shapes.push({kind:'rect',x:88,y,w:904,h:slot-18,color:'wash'});

@@ -1,3 +1,4 @@
+import {templateContract} from './template-contracts.ts';
 import type {Story,StoryPage,Scene,Shape} from './model.ts';
 export const TEMPLATES=[
  {id:'headline',name:'大标题',hint:'把一个观点放大',sample:'## 从一个细节开始\n\n认真记下，才有自己的表达。'},
@@ -23,14 +24,9 @@ export function applyTemplate(story:Story,id:string,template:TemplateId|undefine
  return {...story,pages:story.pages.map(p=>p.id===id?{...p,template,diagram:'none' as const}:p),updatedAt:Date.now()};
 }
 export function templateProfile(page:StoryPage,height:number){
- const id=page.template;let x=88,width=904,top=190,scale=1,large=page.role==='cover';
- if(id==='headline'){top=height*.27;large=true;width=850;}
- if(id==='quote'){x=168;width=740;top=height*.26;scale=1.12;large=false;}
- if(id==='reading'){x=142;width=796;top=238;large=false;}
- if(id==='essay'){x=155;width=770;top=212;large=false;}
- if(id==='memo'){x=146;width=790;top=206;large=false;}
- return {x,width,top,scale,large};
+ return templateContract(page.template).geometry(height,page.role);
 }
+
 export function templateDecorate(scene:Scene,page:StoryPage):Scene{
  const shapes:Shape[]=[...scene.shapes];const {height}=scene;
  if(page.template==='headline')shapes.push({kind:'line',x:88,y:height-185,w:210,h:0,color:'accent'});

@@ -32,10 +32,10 @@
 ### Task 2: 模板约束与逐页诊断
 **Files:** src/studio/template-contracts.ts, diagnostics.ts, LayoutChecks.tsx, scene.ts, templates.ts, template-layout.ts, Studio.tsx, studio.css; tests/layout-diagnostics.test.ts, layout-checks-browser.mjs.
 **Interfaces:** templateContract(id) -> supported roles, photo count, min/max font, geometry/capacity, fallback; inspectLayout(story,scenes,assets) -> issues {kind,pageId,sceneIndex,message,action}; Scene optional layout adjustment metadata.
-- [ ] Test overflowing decorative prose chooses same-role simpler layout before continuation; modest overflow adjusts spacing/font no lower36; long text still continuations; photo preserved; no duplicate text; diagram labels isolated from body-size warnings. Expected RED.
-- [ ] Declare 12 template capabilities consumed by layout; for prose try requested layout, same-role plain/flexible layout, compact spacing, bounded font adjustment, finally continuation. Keep original data unchanged, explain applied fallback. For semantic diagrams reject unsupported structure to text rather than invent relationships.
-- [ ] Add inspection panel: density, body font at minimum, missing asset, source mismatch, unconfirmed AI, continuation, target excess; each issue opens page or source/AI action. Offer explicit keep full (auto target), AI refine preview, split into works; recommendations show source-based reasons. Expected focused tests PASS.
-- [ ] Run full unit/studio/storage and build; commit.
+- [x] Test overflowing decorative prose chooses same-role simpler layout before continuation; modest overflow adjusts spacing/font no lower36; long text still continuations; photo preserved; no duplicate text; diagram labels isolated from body-size warnings. Expected RED.
+- [x] Declare 12 template capabilities consumed by layout; for prose try requested layout, same-role plain/flexible layout, compact spacing, bounded font adjustment, finally continuation. Keep original data unchanged, explain applied fallback. For semantic diagrams reject unsupported structure to text rather than invent relationships.
+- [x] Add inspection panel: density, body font at minimum, missing asset, source mismatch, unconfirmed AI, continuation, target excess; each issue opens page or source/AI action. Offer explicit keep full (auto target), AI refine preview, split into works; recommendations show source-based reasons. Expected focused tests PASS.
+- [x] Run full unit/studio/storage and build; commit.
 
 ### Task 3: 长文拆篇与交付
 **Files:** src/studio/split-works.ts, SplitWorksPanel.tsx, database.ts, Studio.tsx; tests/split-works.test.ts, split-works-storage.mjs, layout-pwa.mjs; release docs and guide.

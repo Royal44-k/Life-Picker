@@ -45,6 +45,7 @@ export async function scenePng(scene:Scene,options:CardOptions):Promise<Blob>{
 }
 export function confirmedScenes(story:Story):Scene[]{
  if(hashText(story.source)!==story.sourceHash)throw new Error('原文已修改，请先生成分镜，再导出最新内容。');
+ if(story.pages.some(p=>p.sourceRanges?.length&&p.sourceVersion!==story.sourceHash&&!p.retainedFromPrevious))throw new Error('部分页面的来源版本已过期，请先核对原文更新后再导出。');
  if(!story.pages.length)throw new Error('先写一点内容，再生成分镜。');
  return layoutStory(story,createMeasure(story.options));
 }

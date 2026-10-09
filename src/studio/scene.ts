@@ -3,15 +3,17 @@ import type { MeasureText, CardOptions, CardLine } from '../core/types.ts';
 import { parseMarkdown } from '../core/markdown.ts';
 import { HEIGHTS, wrapText } from '../core/layout.ts';
 import {templateLayout} from './template-layout.ts';
-import {templateProfile,templateDecorate} from './templates.ts';
+import {templateDecorate} from './templates.ts';
+import {templateContract} from './template-contracts.ts';
+import {fitProse} from './template-fit.ts';
 export const roughMeasure:MeasureText=(s,size)=>Array.from(s).reduce((v,c)=>v+(/[\x00-\xff]/.test(c)?size*.57:size),0);
-export function textLines(source:string,options:CardOptions,measure:MeasureText,width=904,cover=false):SceneLine[]{
+export function textLines(source:string,options:CardOptions,measure:MeasureText,width=904,cover=false,limits?:{min:number;max:number}):SceneLine[]{
   const lines:SceneLine[]=[];let y=0;
   for(const block of parseMarkdown(source)){
     if(block.kind==='break')continue;
     const heading=block.kind==='heading';
     const base=cover?76:heading?(block.level===1?58:48):block.kind==='code'?36:40;
-    const size=Math.max(36,Math.round(base*options.fontScale));
+    const size=Math.max(limits?.min||36,Math.min(!heading&&!cover?limits?.max||Infinity:Infinity,Math.round(base*options.fontScale)));
     const lineHeight=Math.ceil(size*(heading||cover?1.38:1.65));
     const weight=heading||cover||block.emphasis?700:400;
     const indent=block.kind==='list'||block.kind==='quote'?38:0;
@@ -54,29 +56,24 @@ function diagramScene(page:StoryPage,story:Story,measure:MeasureText,base:Scene)
 }
 function layoutPages(story:Story,measure:MeasureText):Scene[]{
   const all:Scene[]=[];
-  for(const page of story.pages){
+  for(const originalPage of story.pages){
+    let page=originalPage;
     const height=HEIGHTS[story.options.ratio];
     const base:Scene={id:page.id,pageId:page.id,lines:[],shapes:[],width:1080,height,index:0,total:0,role:page.role,warnings:[],assetId:page.assetId};
+    if(page.template&&!templateContract(page.template).roles.includes(page.role)){base.warnings.push('此模板不适用于当前页面角色，已完整保留为文字布局。');page={...page,template:undefined};}
     const custom=templateLayout(page,story,measure,base);if(custom){all.push(custom);continue;}
     if(page.diagram!=='none'&&!page.template){
       const diagram=diagramScene(page,story,measure,base);
       if(diagram&&!page.assetId){all.push(diagram);continue;}
       if(page.assetId)base.warnings.push('图解与照片暂不叠放，已采用照片文字布局。');
     }
-    const profile=templateProfile(page,height);let top=profile.top;
-    const sidePhoto=page.template==='photo-magazine'&&!!page.assetId;
-    if(page.assetId){
-      if(sidePhoto){base.photo={x:88,y:190,w:440,h:height-355,fit:page.fit,focusX:page.focusX,focusY:page.focusY};top=216;profile.x=570;profile.width=422;profile.large=false;}
-      else{const ph=Math.min(470,Math.round(height*.31));base.photo={x:88,y:175,w:904,h:ph,fit:page.fit,focusX:page.focusX,focusY:page.focusY};top=175+ph+42;}
-    }else if(page.template==='photo-magazine')base.warnings.push('照片杂志还没有照片，当前完整展示文字；可在本页选择照片。');
-    else if(page.role==='cover'&&!page.template){top=height*.29;base.shapes.push({kind:'rect',x:88,y:top-54,w:70,h:8,color:'accent'});}
-    base.textFrame={x:profile.x,width:profile.width};
-    const lines=textLines((page.codeContinuation?'```\n':'')+page.source,{...story.options,fontScale:story.options.fontScale*profile.scale},measure,profile.width,profile.large).map(l=>({...l,x:l.x+profile.x-88}));
-    let scene=base;let y=top;let priorY=0;let continuation=0;
+    const fitted=fitProse(page,story,measure,base);page=fitted.page;
+    const {lines,top}=fitted;
+    let scene=fitted.base;let y=top;let priorY=0;let continuation=0;
     for(const line of lines){
       const gap=line.y-priorY;
       if(y+gap+line.lineHeight>height-145&&scene.lines.length){
-        all.push(templateDecorate(scene,page));continuation++;scene={...base,id:page.id+':'+continuation,lines:[],shapes:[],photo:undefined,assetId:undefined,warnings:['内容延伸至续页，可在分镜中拆分。']};y=190;
+        all.push(templateDecorate(scene,page));continuation++;scene={...fitted.base,id:page.id+':'+continuation,lines:[],shapes:[],photo:undefined,assetId:undefined,warnings:['内容延伸至续页，可在分镜中拆分。']};y=190;
       }else y+=gap;
       scene.lines.push({...line,y});y+=line.lineHeight;priorY=line.y+line.lineHeight;
     }

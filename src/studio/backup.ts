@@ -14,6 +14,7 @@ export function validateStory(value:unknown):Story{
  if(s.compiledSource!==undefined&&(typeof s.compiledSource!=='string'||s.compiledSource.length>20000))throw new Error('已确认原文格式无效。');
  if(!s.settings||![0,6,9].includes(s.settings.target)||typeof s.settings.cover!=='boolean'||!['none','question','follow','collect'].includes(s.settings.ending)||!['auto','yes','no',undefined].includes(s.settings.toc))throw new Error('作品编排设置无效。');
  if(![undefined,'knowledge','tutorial','life','product'].includes(s.settings.purpose))throw new Error('创作用途设置无效。');
+ if(s.aiReviewed!==undefined&&typeof s.aiReviewed!=='boolean')throw new Error('AI 核对状态无效。');
  if(!Array.isArray(s.pages)||s.pages.length>60||!Array.isArray(s.warnings)||s.warnings.length>100||s.warnings.some(w=>typeof w!=='string'||w.length>1000))throw new Error('作品页数或提示无效。');
  const ids=new Set<string>();let total=0;
  for(const p of s.pages){
