@@ -1,3 +1,5 @@
+import {HistoryPanel} from './HistoryPanel.tsx';
+import {restoreStoryHistory,checkpointStory,clearStoryHistory} from './database.ts';
 import {SeriesAssignment} from '../series/SeriesAssignment.tsx';
 import {PublicationEditor} from '../series/PublicationEditor.tsx';
 import {listSeries,applySeriesToStory} from '../series/database.ts';
@@ -41,7 +43,7 @@ function boot(){return bootPromise??=migrateLegacy().then(allStories).then(async
 });}
 export default function Studio(){
  const [story,setStory]=useState<Story|null>(null),[stories,setStories]=useState<Story[]>([]),[assets,setAssets]=useState<MediaAsset[]>([]);
- const [tab,setTab]=useState('source'),[index,setIndex]=useState(0),[modal,setModal]=useState<'library'|'page'|'image'|'ai'|'storyboard'|'templates'|'pageAI'|'publication'|null>(null);
+ const [tab,setTab]=useState('source'),[index,setIndex]=useState(0),[modal,setModal]=useState<'library'|'page'|'image'|'ai'|'storyboard'|'templates'|'pageAI'|'publication'|'history'|null>(null);
  const [templateReturn,setTemplateReturn]=useState<'page'|null>(null);
  const [editId,setEditId]=useState(''),[saveStatus,setSaveStatus]=useState('正在读取本机作品…'),[error,setError]=useState(''),[toast,setToast]=useState(''),[busy,setBusy]=useState('');
  const [image,setImage]=useState<{url:string;blob:Blob;index:number;title:string}|null>(null),[imageBusy,setImageBusy]=useState(false),[canShare,setCanShare]=useState(false);
@@ -63,7 +65,7 @@ export default function Studio(){
   const ticket=++sequence.current;try{localStorage.setItem('shiye:studio:active',next.id);}catch{}
   queue.current=queue.current.then(async()=>{
    if(blocked.current)throw new Error('请先备份当前作品，再刷新以恢复保存。');
-   const revision=await saveStory(next,revs.current.get(next.id)||0);revs.current.set(next.id,revision);
+   const revision=await saveStory(next,revs.current.get(next.id)||0,remember);revs.current.set(next.id,revision);
    if(ticket===sequence.current){pending.current=false;setSaveStatus('已保存到本机');}
   }).catch(e=>{blocked.current=e.name!=='MissingAssetError';pending.current=true;setSaveStatus('修改尚未保存');setError(e.message||'保存失败，请先备份作品。');});
   return true;
@@ -114,6 +116,9 @@ export default function Studio(){
 
  async function assignSeries(selected:PersonalSeries|null,appearance:boolean){if(!story)return;const stamp=sequence.current,id=story.id;setBusy('正在应用系列…');try{const current=selected?(await listSeries()).find(s=>s.id===selected.id):null;if(selected&&(!current||current.revision!==selected.revision))throw new Error('系列已更新或停用，请重新读取系列列表。');if(sequence.current!==stamp||currentId.current!==id)throw new Error('作品已发生变化，请核对当前内容后再应用。');if(blocked.current||pending.current)throw new Error('请先处理当前作品的未保存修改。');if(!commit(applySeriesToStory(story,current||null,appearance),true))throw new Error('系列设置尚未应用。');await queue.current;if(pending.current||blocked.current)throw new Error('系列设置尚未保存，请在工作台重试保存或备份。');setError('');}finally{setBusy('');}}
  async function savePublication(publication:Publication|undefined){if(!story)return;setBusy('正在保存回看…');setError('');try{await queue.current;blocked.current=false;const next={...story};if(publication)next.publication=publication;else delete next.publication;if(!commit(next))throw new Error('回看数据无效，输入仍保留。');await queue.current;if(pending.current||blocked.current)throw new Error('回看尚未保存，请重试；若另一窗口已更新，请先下载当前输入并刷新作品。');}finally{setBusy('');}}
+ async function historyAction(action:(revision:number)=>Promise<void>){await queue.current;if(pending.current||blocked.current)throw new Error('请先处理未保存的修改，再操作历史。');await action(revs.current.get(story!.id)||0);}
+ async function openHistory(){if(!story||busy)return;setBusy('正在读取历史…');try{await historyAction(async()=>{});setModal('history');}catch(e){setError((e as Error).message);}finally{setBusy('');}}
+ async function restoreHistory(id:string){await historyAction(async revision=>{const restored=await restoreStoryHistory(story!.id,id,revision);revs.current.set(restored.id,restored.revision);setStory(restored);setStories(old=>[restored,...old.filter(s=>s.id!==restored.id)]);setUndo([]);setIndex(0);setModal(null);setTab('outline');setSaveStatus('已保存到本机');notify('已恢复历史版本，恢复前的作品仍在历史中。');});}
  function close(){setModal(null);imageTicket.current++;setImage(null);}
  if(!story)return <main className="next-studio loading"><Layers/><h1>拾页</h1><p>{error||'正在打开你的创作空间…'}</p><a href="?classic=1">打开经典工作台</a></main>;
  return <div className="next-studio has-main-nav">
@@ -149,7 +154,7 @@ export default function Studio(){
     <aside className="next-desktop-preview"><Preview/></aside>
    </div>
    <div className="next-bottom"><div><strong>{scenes.length} 张图片</strong><span>{scenes.length?'当前第 '+(Math.min(index,scenes.length-1)+1)+' 张，可选页保存':'原文和页面分别保留'}</span></div><button className="next-secondary" disabled={!!busy||!scene||stale} onClick={()=>void previewImage()}>保存单图</button><button className="next-primary" disabled={!!busy||!scenes.length||stale} onClick={()=>void exportZip()}><Download size={16}/>整篇 ZIP</button></div>
-   <div id="backup" className="next-utilities"><a href="/?view=journal" onClick={e=>{e.preventDefault();void leave('/?view=journal');}}>随心记</a><button onClick={()=>void backup()} disabled={!!busy}>备份作品</button><button onClick={()=>restoreInput.current?.click()} disabled={!!busy||blocked.current}>恢复备份</button><a href="/guide-v1.1.html" target="_blank" rel="noreferrer">使用指南</a><span>v1 已保留 · 作品只存本机</span></div>
+   <div id="backup" className="next-utilities"><button disabled={!!busy} onClick={()=>void openHistory()}>作品历史</button><a href="/?view=journal" onClick={e=>{e.preventDefault();void leave('/?view=journal');}}>随心记</a><button onClick={()=>void backup()} disabled={!!busy}>备份作品</button><button onClick={()=>restoreInput.current?.click()} disabled={!!busy||blocked.current}>恢复备份</button><a href="/guide-v1.1.html" target="_blank" rel="noreferrer">使用指南</a><span>v1 已保留 · 作品只存本机</span></div>
   </main>
   <input hidden aria-label="选择作品备份" ref={restoreInput} type="file" accept=".zip" onChange={e=>void restore(e.target.files?.[0])}/><input hidden aria-label="选择文字文件" ref={textInput} type="file" multiple accept=".md,.markdown,.txt" onChange={e=>void importText(e.target.files)}/>
   {toast&&<div className="toast" role="status">{toast}</div>}{busy&&<div className="busy-overlay" role="status">{busy}</div>}
@@ -176,6 +181,7 @@ export default function Studio(){
    {imageBusy?<p role="status">正在生成第 {index+1} 张高清图片…</p>:image?<><img className="save-image" src={image.url} alt={'可长按保存的第 '+(image.index+1)+' 张图片'}/><div className="next-dialog-actions"><button className="next-secondary" onClick={()=>download(image.blob,safeName(image.title)+'-'+String(image.index+1).padStart(2,'0')+'.png')}>下载 PNG</button>{canShare&&<button className="next-primary" onClick={()=>void navigator.share({files:[new File([image.blob],'拾页-'+(image.index+1)+'.png',{type:'image/png'})]}).catch(e=>{if(e.name!=='AbortError')notify('请改用长按图片保存。');})}>系统分享</button>}</div></>:<p role="alert">{imageError||'未能生成图片，请选择其他页或关闭后重试。'}</p>}
   </Modal>}
 
+  {modal==='history'&&<HistoryPanel story={story} onClose={close} onRestore={restoreHistory} onCheckpoint={()=>historyAction(r=>checkpointStory(story.id,r))} onClear={()=>historyAction(r=>clearStoryHistory(story.id,r))} onBackup={async old=>{download(await makeBundle(old,getAsset),safeName(old.title)+'-版本'+old.revision+'.zip');}}/>}
   {modal==='storyboard'&&<StoryboardAI story={story} onClose={close} onApply={pages=>attempt(()=>{const next=planStory(story.source,story.options,story.settings,createMeasure(story.options));const cover=story.pages.find(p=>p.role==='cover'&&p.assetId);if(cover&&pages[0]?.role==='cover')pages[0]={...pages[0],assetId:cover.assetId,fit:cover.fit,focusX:cover.focusX,focusY:cover.focusY};next.pages=pages;next.warnings=['AI 已编辑表达，请核对事实；原作品在作品库中保留。'];if(!commit({...next,series:story.series,inspiration:story.inspiration}))return;setUndo([]);close();setIndex(0);setTab('outline');notify('AI 分镜已另存为新作品');})}/>}
   {modal==='ai'&&<AiPanel initialTone={story.series?.tone} initialTopic={story.series?.topic?'本系列关注：'+story.series.topic:''} source={story.source} onClose={close} notify={notify} onApply={text=>attempt(()=>{const next=planStory(text,story.options,story.settings,createMeasure(story.options));if(!commit({...next,series:story.series,inspiration:story.inspiration}))return;setUndo([]);close();setTab('outline');notify('已生成新作品，原文作品仍在作品库。');})}/>}
   <BottomNav active="studio" onNavigate={leave} disabled={!!busy||!!modal}/>

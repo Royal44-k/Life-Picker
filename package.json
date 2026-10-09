@@ -27,7 +27,8 @@
     "test:storage": "node tests/studio-storage.mjs && node tests/studio-migration.mjs && node tests/media-lifecycle.mjs && node tests/journal-storage.mjs && node tests/journal-migration.mjs && node tests/journal-backup-browser.mjs && node tests/journal-restore-flow.mjs && node tests/memory-storage.mjs && node tests/companion-storage.mjs",
     "test:quotes": "node tests/quotes-browser.mjs && node tests/quotes-errors-browser.mjs && node tests/quotes-navigation-browser.mjs && node tests/quotes-capture-conflict-browser.mjs",
     "test:quotes:offline": "node tests/pwa-quotes.mjs",
-    "test:companion:final": "node tests/companion-growth-browser.mjs && node tests/companion-errors-browser.mjs && node tests/photo-date-browser.mjs && node tests/v15-review-regressions.mjs"
+    "test:companion:final": "node tests/companion-growth-browser.mjs && node tests/companion-errors-browser.mjs && node tests/photo-date-browser.mjs && node tests/v15-review-regressions.mjs",
+    "test:history": "node tests/story-history-storage.mjs && node tests/story-history-browser.mjs"
   },
   "dependencies": {
     "exifr": "7.1.3",

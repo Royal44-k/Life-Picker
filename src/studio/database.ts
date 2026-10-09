@@ -4,6 +4,8 @@ import {validateStory} from './backup.ts';
 import {loadDrafts} from '../core/storage.ts';
 import {planStory} from './planner.ts';
 import {DEFAULT_SETTINGS} from './model.ts';
+import {historyKey,readHistory,archiveHistory,rememberHistory,historyPhotos} from './history.ts';
+import type {StoryHistoryRow} from './history.ts';
 const DB='shiye-studio-v2';
 export function openDB():Promise<IDBDatabase>{return new Promise((resolve,reject)=>{
  let failed=false;const req=indexedDB.open(DB,2);
@@ -12,26 +14,56 @@ export function openDB():Promise<IDBDatabase>{return new Promise((resolve,reject
 });}
 export function finish<T>(db:IDBDatabase,tx:IDBTransaction,result:()=>T):Promise<T>{return new Promise((resolve,reject)=>{tx.oncomplete=()=>{db.close();try{resolve(result());}catch(e){reject(e);}};tx.onerror=()=>{};tx.onabort=()=>{db.close();reject(tx.error||new Error('保存中断，当前修改尚未保存。'));};});}
 export async function allStories():Promise<Story[]>{const db=await openDB();const tx=db.transaction('stories');let rows:Story[]=[];tx.objectStore('stories').getAll().onsuccess=e=>{rows=(e.target as IDBRequest).result;};return finish(db,tx,()=>rows.map(validateStory).sort((a,b)=>b.updatedAt-a.updatedAt));}
-export async function saveStory(story:Story,expected:number):Promise<number>{
- story=validateStory(story);const db=await openDB();const tx=db.transaction(['stories','assets'],'readwrite');const store=tx.objectStore('stories');
- let next=0,conflict=false,missing=false;
- store.get(story.id).onsuccess=e=>{
+async function changeStoredStory(id:string,expected:number,make:(old:Story|undefined,history:StoryHistoryRow)=>Story,checkpoint:boolean):Promise<Story>{
+ const db=await openDB(),tx=db.transaction(['stories','assets','meta'],'readwrite'),store=tx.objectStore('stories'),meta=tx.objectStore('meta');
+ let result:Story,problem:Error|undefined;
+ const fail=(e:unknown)=>{problem=e instanceof Error?e:new Error('保存失败，原作品保留。');tx.abort();};
+ store.get(id).onsuccess=e=>{
   const old=(e.target as IDBRequest).result as Story|undefined;
-  if((old?.revision||0)!==expected){conflict=true;tx.abort();return;}
-  const ids=[...new Set(story.pages.flatMap(p=>p.assetId?[p.assetId]:[]))];let remaining=ids.length;
-  const put=()=>{next=expected+1;store.put({...story,revision:next});};
-  if(!remaining){put();return;}
-  for(const id of ids)tx.objectStore('assets').get(id).onsuccess=e=>{
-   if(!(e.target as IDBRequest).result){missing=true;tx.abort();return;}
-   if(--remaining===0)put();
+  if((old?.revision||0)!==expected){fail(new Error('另一窗口已更新此作品。请先备份当前修改，再刷新；不会覆盖新版本。'));return;}
+  meta.get(historyKey(id)).onsuccess=e=>{
+   try{
+    const history=readHistory((e.target as IDBRequest).result,id);
+    result={...validateStory(make(old,history)),revision:expected+1};
+    const archive=archiveHistory(history,old,result,checkpoint);
+    const put=()=>{try{meta.put(archive);store.put(result);}catch(e){fail(e);}};
+    const ids=[...new Set(result.pages.flatMap(p=>p.assetId?[p.assetId]:[]))];let remaining=ids.length;
+    if(!remaining){put();return;}
+    for(const assetId of ids)tx.objectStore('assets').get(assetId).onsuccess=e=>{
+     if(!(e.target as IDBRequest).result){const error=new Error('照片已在另一窗口被彻底删除。请为相关页面重新选择照片或选择“不放照片”，再保存。');error.name='MissingAssetError';fail(error);return;}
+     if(--remaining===0)put();
+    };
+   }catch(e){fail(e);}
   };
  };
- try{return await finish(db,tx,()=>next);}catch(e){
-  if(conflict)throw new Error('另一窗口已更新此作品。请先备份当前修改，再刷新；不会覆盖新版本。');
-  if(missing){const error=new Error('照片已在另一窗口被彻底删除。请为相关页面重新选择照片或选择“不放照片”，再保存。');error.name='MissingAssetError';throw error;}
-  throw e;
- }
+ try{return await finish(db,tx,()=>result);}catch(e){throw problem||e;}
 }
+export async function saveStory(story:Story,expected:number,checkpoint=false):Promise<number>{
+ story=validateStory(story);return (await changeStoredStory(story.id,expected,()=>story,checkpoint)).revision;
+}
+export async function listStoryHistory(id:string){
+ const db=await openDB(),tx=db.transaction('meta');let row:unknown;
+ tx.objectStore('meta').get(historyKey(id)).onsuccess=e=>{row=(e.target as IDBRequest).result;};
+ return finish(db,tx,()=>readHistory(row,id).entries.reverse());
+}
+export async function restoreStoryHistory(id:string,entryId:string,expected:number):Promise<Story>{
+ return changeStoredStory(id,expected,(old,history)=>{
+  if(!old)throw new Error('作品已不存在，请刷新。');
+  const entry=history.entries.find(e=>e.id===entryId);if(!entry)throw new Error('这个历史版本已被清理，请重新读取列表。');
+  return {...entry.story,id,updatedAt:Date.now()};
+ },true);
+}
+async function editHistory(id:string,expected:number,clear:boolean):Promise<void>{
+ const db=await openDB(),tx=db.transaction(['stories','meta'],'readwrite'),meta=tx.objectStore('meta');let problem:Error|undefined;
+ const fail=(e:unknown)=>{problem=e instanceof Error?e:new Error('历史保存失败。');tx.abort();};
+ tx.objectStore('stories').get(id).onsuccess=e=>{
+  const story=(e.target as IDBRequest).result as Story|undefined;
+  if(!story||story.revision!==expected){fail(new Error('作品已变化，请重新读取当前作品后操作。'));return;}
+  meta.get(historyKey(id)).onsuccess=e=>{try{if(clear)meta.delete(historyKey(id));else meta.put(rememberHistory(readHistory((e.target as IDBRequest).result,id),validateStory(story)));}catch(e){fail(e);}};
+ };try{await finish(db,tx,()=>undefined);}catch(e){throw problem||e;}
+}
+export const checkpointStory=(id:string,expected:number)=>editHistory(id,expected,false);
+export const clearStoryHistory=(id:string,expected:number)=>editHistory(id,expected,true);
 
 export async function getAsset(id:string):Promise<MediaAsset|undefined>{const db=await openDB();const tx=db.transaction('assets');let a:MediaAsset|undefined;tx.objectStore('assets').get(id).onsuccess=e=>{a=(e.target as IDBRequest).result;};return finish(db,tx,()=>a);}
 export async function listAssets(includeTrashed=false):Promise<MediaAsset[]>{const db=await openDB();const tx=db.transaction('assets');let a:MediaAsset[]=[];tx.objectStore('assets').getAll().onsuccess=e=>{a=(e.target as IDBRequest).result;};return finish(db,tx,()=>a.filter(asset=>includeTrashed||!asset.trashedAt).sort((a,b)=>b.createdAt-a.createdAt));}
@@ -94,26 +126,29 @@ async function updateTrash(id:string,trashed:boolean):Promise<void>{
 export const trashAsset=(id:string)=>updateTrash(id,true);
 export const restoreAsset=(id:string)=>updateTrash(id,false);
 export async function otherAssetUsage():Promise<Record<string,{id:string;title:string}[]>>{
- const db=await openDB(),tx=db.transaction(['journals','memories']);const result:Record<string,{id:string;title:string}[]>={};
+ const db=await openDB(),tx=db.transaction(['journals','memories','meta']);const result:Record<string,{id:string;title:string}[]>={};let problem:Error|undefined;
+ tx.objectStore('meta').getAll().onsuccess=e=>{try{for(const ref of historyPhotos((e.target as IDBRequest).result))(result[ref.assetId]??=[]).push({id:ref.id,title:ref.title});}catch(e){problem=e as Error;tx.abort();}};
  for(const store of ['journals','memories'])tx.objectStore(store).getAll().onsuccess=e=>{
   for(const row of (e.target as IDBRequest).result){
    const ids:string[]=store==='journals'?row.assetIds:row.items.flatMap((i:{assetIds:string[]})=>i.assetIds);
    for(const id of new Set(ids))(result[id]??=[]).push({id:store+':'+row.id,title:store==='journals'?'随心记 · '+row.date+(row.trashedAt?'（回收站）':''):'回忆册 · '+row.title});
   }
- };return finish(db,tx,()=>result);
+ };try{return await finish(db,tx,()=>result);}catch(e){throw problem||e;}
 }
 export async function deleteAssetPermanently(id:string):Promise<void>{
- const db=await openDB();const tx=db.transaction(['assets','stories','journals','memories'],'readwrite');let reason='';
+ const db=await openDB();const tx=db.transaction(['assets','stories','journals','memories','meta'],'readwrite');let reason='';
  const assets=tx.objectStore('assets');
  assets.get(id).onsuccess=e=>{
   const asset=(e.target as IDBRequest).result as MediaAsset|undefined;if(!asset)return;
   if(!asset.trashedAt){reason='请先将照片移入回收站；已恢复的照片不会被直接删除。';tx.abort();return;}
-  let remaining=3;const uses:string[]=[];
+  let remaining=4;const uses:string[]=[];
+  const complete=()=>{if(--remaining===0){if(uses.length){reason='照片仍用于 '+uses.join('、')+'，请先从这些内容中移除照片；历史引用可在作品历史中清理。';tx.abort();}else assets.delete(id);}};
+  tx.objectStore('meta').getAll().onsuccess=e=>{try{const refs=historyPhotos((e.target as IDBRequest).result).filter(r=>r.assetId===id);if(refs.length)uses.push(refs.length+' 个作品的历史版本');complete();}catch(e){reason=(e as Error).message;tx.abort();}};
   for(const name of ['stories','journals','memories'])tx.objectStore(name).getAll().onsuccess=e=>{
    const rows=(e.target as IDBRequest).result;
    const count=rows.filter((row:Story&{assetIds:string[];items:{assetIds:string[]}[]})=>name==='stories'?row.pages.some(p=>p.assetId===id):name==='journals'?row.assetIds.includes(id):row.items.some(i=>i.assetIds.includes(id))).length;
    if(count)uses.push(count+' 个'+(name==='stories'?'作品':name==='journals'?'随心记':'回忆册'));
-   if(--remaining===0){if(uses.length){reason='照片仍用于 '+uses.join('、')+'，请先从这些内容中移除照片。';tx.abort();}else assets.delete(id);}
+   complete();
   };
  };
  try{await finish(db,tx,()=>undefined);}catch(e){if(reason)throw new Error(reason);throw e;}
