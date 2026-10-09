@@ -1,3 +1,4 @@
+import {DesignSources} from './DesignSources.tsx';
 import {PersonalXhs} from './PersonalXhs.tsx';
 import {useEffect,useRef,useState} from 'react';
 import {ArrowLeft,ArrowUpRight,Check,Download,Link,Plus,RotateCcw,Trash2} from 'lucide-react';
@@ -125,7 +126,7 @@ export default function Sources(){
    {message&&<p className="source-message" role="status"><Check size={16}/>{message}</p>}
    {undo&&<div className="source-undo"><span>“{undo.title}”已移入回收站</span><button disabled={busy} onClick={()=>void run(()=>trash(undo,false))}><RotateCcw size={16}/>撤销删除</button></div>}
    {status?.ready===false&&<p className="source-error">{status.error||'来源库暂时不可用，原文件保留。'}{status.canRecover?'可在下方选择来源备份进行修复。':''}</p>}
-   {connected&&<><SourceCollection code={code} disabled={busy} onSettled={refreshCollected}/><PersonalXhs code={code} disabled={busy} onSettled={refreshCollected}/></>}
+   {connected&&<><SourceCollection code={code} disabled={busy} onSettled={refreshCollected}/><PersonalXhs code={code} disabled={busy} onSettled={refreshCollected}/><DesignSources code={code} disabled={busy} onSettled={refreshCollected}/></>}
    {connected&&<div className="source-workspace">
     <section className="source-collection" aria-label="来源列表">
      <div className="source-section-head"><h2>我的来源夹 <small>{records.length} / 500</small></h2><button className="source-primary" disabled={busy} onClick={()=>select(null)}><Plus size={17}/>添加来源</button></div>

@@ -47,7 +47,7 @@ export async function createDesignSources({root,getStore,fetcher=fetch,now=Date.
       found.set(key,{item,draft});
      }catch(e){if(deadline.aborted)throw e;failures++;}
     }
-    deadline.throwIfAborted();candidates=found;last={checkedAt:now(),kind:input.kind,results:[...found.values()].map(x=>x.item),failures,partial:failures>0||data.incomplete_results===true,error:''};return status();
+    deadline.throwIfAborted();candidates=found;last={checkedAt:now(),kind:input.kind,results:[...found.values()].map(x=>x.item),failures,partial:failures>0||data.incomplete_results===true,error:''};return {...status(),running:false};
    }catch(e){if(signal?.aborted)throw new DOMException('开放设计检查已取消。','AbortError');const message=deadline.aborted?'开放设计检查超时，请稍后手动重试。':e instanceof TypeError?'无法连接 GitHub，请稍后手动重试。':e.message;last={...last,error:message};throw Error(message);}
   });
  }

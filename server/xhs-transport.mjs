@@ -1,5 +1,5 @@
 import {parseSourceDraft} from './source-model.mjs';
-const messages={host_blocked:'Windows 拦截了个人来源的进程辅助程序（错误 225），本次已停止。可继续手动添加参考链接，不要关闭系统防护。',not_installed:'个人来源工具尚未安装，请在电脑完成准备。',needs_login:'需要本人正常扫码登录，当前没有采集笔记。',challenged:'页面要求安全验证，已停止。请在小红书正常处理后手动检查。',restricted:'页面提示访问限制，已停止自动采集。请稍后人工处理。',needs_attention:'个人来源响应异常，已停止。可以查看原网站，稍后手动检查。',stopped:'个人来源已停止，已有候选保留。'};
+const messages={profile_busy:'拾页专用 Edge 窗口正在被占用。请关闭该窗口（不要退出登录），再检查登录状态。',host_blocked:'Windows 拦截了个人来源的进程辅助程序（错误 225），本次已停止。可继续手动添加参考链接，不要关闭系统防护。',not_installed:'个人来源工具尚未安装，请在电脑完成准备。',needs_login:'需要本人正常扫码登录，当前没有采集笔记。',challenged:'页面要求安全验证，已停止。请在小红书正常处理后手动检查。',restricted:'页面提示访问限制，已停止自动采集。请稍后人工处理。',needs_attention:'个人来源响应异常，已停止。可以查看原网站，稍后手动检查。',stopped:'个人来源已停止，已有候选保留。'};
 export class XhsError extends Error{constructor(state='needs_attention'){super(messages[state]||messages.needs_attention);this.name='XhsError';this.state=state;}}
 const clip=(v,n)=>Array.from(typeof v==='string'?v.trim():'').reduce((s,c)=>s.length+c.length<=n?s+c:s,'');
 export function mapXhsFeeds(data,now=Date.now()){

@@ -28,4 +28,6 @@ export type SourceCollectionStatus={ready:false;error:string}|{
 };
 
 export type PersonalXhsRun={id:string;reason:'manual'|'automatic';state:string;startedAt:number;finishedAt:number|null;added:number;duplicates:number;items:{id:string;title:string}[]};
-export type PersonalXhsStatus={ready:boolean;installed:boolean;state:string;message:string;running:boolean;enabled:boolean;verified:boolean;mode:'home'|'search';keyword:string;recent:boolean;lastSuccessAt:number|null;nextRunAt:number|null;latest:PersonalXhsRun|null;history:PersonalXhsRun[];timezone:string;time:string};
+export type PersonalXhsStatus={connection?:string;ready:boolean;installed:boolean;state:string;message:string;running:boolean;enabled:boolean;verified:boolean;mode:'home'|'search';keyword:string;recent:boolean;lastSuccessAt:number|null;nextRunAt:number|null;latest:PersonalXhsRun|null;history:PersonalXhsRun[];timezone:string;time:string};
+
+export type DesignSourceStatus={running:boolean;checkedAt:number|null;kind:string;failures:number;partial:boolean;error:string;results:{key:string;title:string;description:string;url:string;licenseUrl:string;checkedAt:number;licenseSha256:string}[]};

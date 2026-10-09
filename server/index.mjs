@@ -1,5 +1,5 @@
-import {createXhsRuntime,PINNED_XHS} from './xhs-runtime.mjs';
-import {createXhsTransport} from './xhs-transport.mjs';
+import {createXhsWebSession} from './xhs-web.mjs';
+import {createDesignSources} from './design-sources.mjs';
 import {createXhsCollection} from './xhs-collection.mjs';
 import {createUsageStore} from './usage-store.mjs';
 import { createServer } from 'node:http';
@@ -33,9 +33,10 @@ try{
  sourceAssets=await createPublicAssetCache({root:resolve(root,'.local/source-assets',String(port))});
  sourceJobs=await createSourceJobs({root:resolve(root,'.local/source-jobs',String(port)),getStore:()=>sourceStore,assets:sourceAssets});
 }catch{console.error('公开素材任务暂时无法启动，原任务文件保留。手动来源仍可管理。');}
-const xhsRuntime=createXhsRuntime({root:resolve(root,'.local/xhs-runtime',String(port)),cacheRoot:resolve(root,'.local/xhs-browser-cache'),binary:resolve(root,'.local/xhs-runtime/bin',PINNED_XHS.file)});
-let xhs=null;try{xhs=await createXhsCollection({root:resolve(root,'.local/xhs-state',String(port)),getStore:()=>sourceStore,transport:createXhsTransport({endpoint:xhsRuntime.endpoint}),runtime:xhsRuntime});}catch{console.error('个人来源状态暂时无法读取，已暂停连接，手动来源仍可使用。');}
-const sourceApi=createSourceHandler(sourceStore,pairCode,{assets:sourceAssets,jobs:sourceJobs,xhs,recover:async bundle=>{
+const xhsSession=createXhsWebSession({profile:resolve(root,'.local/xhs-web-session')});
+let xhs=null;try{xhs=await createXhsCollection({root:resolve(root,'.local/xhs-state',String(port)),getStore:()=>sourceStore,transport:xhsSession.transport,runtime:xhsSession.runtime});}catch{console.error('个人来源状态暂时无法读取，已暂停连接，手动来源仍可使用。');}
+let designs=null;try{designs=await createDesignSources({root:resolve(root,'.local/design-sources',String(port)),getStore:()=>sourceStore});}catch{console.error('开放设计发现暂不可用，已有来源保留。');}
+const sourceApi=createSourceHandler(sourceStore,pairCode,{assets:sourceAssets,jobs:sourceJobs,xhs,designs,recover:async bundle=>{
  const result=await recoverSourceStore({root:sourceRoot,bundle});sourceStore=result.store;return result;
 }});
 const localIps=Object.values(networkInterfaces()).flat().filter(x=>x?.family==='IPv4'&&!x.internal).map(x=>x.address);
