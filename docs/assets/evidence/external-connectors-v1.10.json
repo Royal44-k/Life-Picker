@@ -1,0 +1,21 @@
+{
+  "version": "1.10.0",
+  "checkedAt": "2026-10-09T09:31:09.108Z",
+  "xhs": {
+    "state": "succeeded",
+    "added": 6,
+    "duplicates": 0,
+    "pending": 6,
+    "keyword": "读书笔记",
+    "recent": true,
+    "automaticEnabled": false
+  },
+  "designs": {
+    "found": 6,
+    "failures": 0,
+    "imported": 6,
+    "duplicates": 0,
+    "pending": true
+  },
+  "verified": true
+}

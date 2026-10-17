@@ -10,3 +10,8 @@ releases/
 *.tsbuildinfo
 .superpowers/
 .local/
+
+# Local verification output
+coverage/
+playwright-report/
+test-results/

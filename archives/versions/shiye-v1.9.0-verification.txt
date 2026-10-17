@@ -1,0 +1,11 @@
+拾页 v1.9.0 本机交付核验
+Tag commit: 3147c19f4a66fd3f458583d6ee473bbdfacb0b4a
+Source ZIP: shiye-v1.9.0-source.zip
+345 tracked files / 800012 bytes; all archived Git blobs matched.
+SHA256 e8494e9c4163218ec44e253eb4e546147c4368ec9d75f6c4556c9f44383ca44e
+Main unit 220/220; 12 production offline suites; real PNG/video and mobile viewport regressions passed.
+Live app API: storyboard / visual / memory narrative 3 structured checks passed; ledger estimate CNY0.004734. Human text review still required.
+Independent review: no Critical/Important/Minor findings. External iPhone/XHS/market acceptance not claimed.
+Previous v1.0-v1.8 tags and ZIP archives preserved; private .env unchanged; unrelated humen-ai-learning untouched.
+Main production: http://localhost:5173 ; same Wi-Fi phone http://192.168.5.34:5173
+Details: docs/release-v1.9.md, docs/shiye-final-scope.md, docs/decisions-v1.9.md, public/guide-v1.9.html

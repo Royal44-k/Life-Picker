@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "preparedOn": "2026-10-17",
+  "versions": [
+    {
+      "tag": "v1.0.0",
+      "commit": "c277333cf32fea2664b1c33d43edcff7a11a8e04",
+      "date": "2026-09-29",
+      "summary": "首版 Markdown / AI 文案 / 批量转图",
+      "archive": "shiye-v1.0.0-20260929.zip",
+      "bytes": 206586,
+      "sha256": "652742a67b7d19f25571ced0780683124f98ce5bc8f4e2f7f832af9d10559df6",
+      "originalChecksum": "shiye-v1.0.0-20260929.zip.sha256"
+    },
+    {
+      "tag": "v1.1.0",
+      "commit": "1e48961c889cd9942017b1c43c4b18da22951d6c",
+      "date": "2026-09-29",
+      "summary": "多页作品、照片与分镜",
+      "archive": "shiye-v1.1.0-source.zip",
+      "bytes": 147270,
+      "sha256": "102cc6ab3612a738cbb057bb6441c560baabd73dc626329994f766f2897f8f8c",
+      "originalChecksum": "shiye-v1.1.0-source.zip.sha256"
+    },
+    {
+      "tag": "v1.1.1",
+      "commit": "8fb9e32f2b474895c401fb0ab89ca719ba64456d",
+      "date": "2026-09-29",
+      "summary": "照片移除 / 撤销、任意页下载",
+      "archive": "shiye-v1.1.1-source.zip",
+      "bytes": 195004,
+      "sha256": "5aa46102c2824a5d94ef47bb2e3cb165c8eba1e784129fe33eb0825b7383563a",
+      "originalChecksum": "shiye-v1.1.1-source.sha256"
+    },
+    {
+      "tag": "v1.2.0",
+      "commit": "38fd1a426cb1345c51e15c6ab5e2d073e9a89e83",
+      "date": "2026-09-29",
+      "summary": "随心记、小拾、回忆与短片",
+      "archive": "shiye-v1.2.0-source.zip",
+      "bytes": 329158,
+      "sha256": "57155caa4d3c43451b41644501557c87675933c03d52a05647d07cd616a59b3e",
+      "originalChecksum": "shiye-v1.2.0-source.zip.sha256"
+    },
+    {
+      "tag": "v1.3.0",
+      "commit": "8b4158cf38eab2a509f01def72566f1f3a9a0341",
+      "date": "2026-10-05",
+      "summary": "来源、系列、发布回看与 AI 预算",
+      "archive": "shiye-v1.3.0-source.zip",
+      "bytes": 523761,
+      "sha256": "3ee29e3852023c2b9d63586a2c69f3eb49774f23f80e252f0e37ebff3768fca7",
+      "originalChecksum": "shiye-v1.3.0-source.zip.sha256"
+    },
+    {
+      "tag": "v1.4.0",
+      "commit": "01a1d5a55846ff1d035c1c87db73413d1e12c62c",
+      "date": "2026-10-07",
+      "summary": "原话簿",
+      "archive": "shiye-v1.4.0-source.zip",
+      "bytes": 566009,
+      "sha256": "6d3b762bc686c86cc967366b9d7a8d8fb0058027ca1684e89151a80cfa2b4a8c",
+      "originalChecksum": "shiye-v1.4.0-source.zip.sha256"
+    },
+    {
+      "tag": "v1.5.0",
+      "commit": "2e23e9b88bcfddc35135ab641f1c50a3516221ae",
+      "date": "2026-10-07",
+      "summary": "小拾成长、照片日期与基础整合",
+      "archive": "shiye-v1.5.0-source.zip",
+      "bytes": 612767,
+      "sha256": "88acb9f3f0c27c9693ceac06feab143510fd636c6a8bb7de58e05e74a3e4ae96",
+      "originalChecksum": "shiye-v1.5.0-source.zip.sha256"
+    },
+    {
+      "tag": "v1.6.0",
+      "commit": "0213bbbed8d9b1d436357ac4fee6b45611e841f0",
+      "date": "2026-10-09",
+      "summary": "可靠编辑与历史恢复",
+      "archive": "shiye-v1.6.0-source.zip",
+      "bytes": 649195,
+      "sha256": "3abf59f25db613f6d588f5ddc5e2975603becf953b8d1aee132939b5b2192265",
+      "originalChecksum": "shiye-v1.6.0-source.zip.sha256"
+    },
+    {
+      "tag": "v1.7.0",
+      "commit": "29305af82cd6145502add633e182fd1ba8a435be",
+      "date": "2026-10-09",
+      "summary": "智能排版与拆册",
+      "archive": "shiye-v1.7.0-source.zip",
+      "bytes": 683571,
+      "sha256": "8b253e4ff78fd7359a94092c00046aa23f192f9e33003cc8f96adc28fcbf0e58",
+      "originalChecksum": "shiye-v1.7.0-source.zip.sha256"
+    },
+    {
+      "tag": "v1.8.0",
+      "commit": "ddb772dcc89bec9705a07f16a441dd44ae13baa8",
+      "date": "2026-10-09",
+      "summary": "开放主题与视觉建议",
+      "archive": "shiye-v1.8.0-source.zip",
+      "bytes": 758310,
+      "sha256": "998389e21e30bec25de177b18b3e022165195c11aa79607d0c0cc3177cc1da83",
+      "originalChecksum": "shiye-v1.8.0-source.zip.sha256"
+    },
+    {
+      "tag": "v1.9.0",
+      "commit": "3147c19f4a66fd3f458583d6ee473bbdfacb0b4a",
+      "date": "2026-10-09",
+      "summary": "创作引导与回忆串联",
+      "archive": "shiye-v1.9.0-source.zip",
+      "bytes": 800012,
+      "sha256": "e8494e9c4163218ec44e253eb4e546147c4368ec9d75f6c4556c9f44383ca44e",
+      "originalChecksum": "shiye-v1.9.0-source.zip.sha256"
+    },
+    {
+      "tag": "v1.10.0",
+      "commit": "8b4dcf647128a53f9aa71ac5c4abcbcbba8d429e",
+      "date": "2026-10-09",
+      "summary": "真实外部来源连接",
+      "archive": "shiye-v1.10.0-source.zip",
+      "bytes": 852092,
+      "sha256": "4ce34fa77b9965e3c9faf1231f20dff53a9b46d856e10ac5071d054fde313ba5",
+      "originalChecksum": "shiye-v1.10.0-source.zip.sha256"
+    }
+  ]
+}

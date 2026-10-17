@@ -1,0 +1,42 @@
+{
+  "version": "1.10.0",
+  "checkedAt": "2026-10-09T09:28:55.810Z",
+  "assets": {
+    "state": "partial",
+    "added": 2,
+    "updated": 0,
+    "duplicates": 4,
+    "failed": 1,
+    "items": [
+      {
+        "title": "手绘日常 · 读书时刻",
+        "error": ""
+      },
+      {
+        "title": "手绘日常 · 照料绿植",
+        "error": ""
+      },
+      {
+        "title": "手绘人物 · Peep 76",
+        "error": "官网页面没有找到该文件链接，需要重新核对对应关系。"
+      },
+      {
+        "title": "手绘日常 · 咖啡时刻",
+        "error": ""
+      },
+      {
+        "title": "手绘日常 · 与小狗相伴",
+        "error": ""
+      },
+      {
+        "title": "手绘人物 · Peep 77",
+        "error": ""
+      },
+      {
+        "title": "手绘人物 · Peep 10",
+        "error": ""
+      }
+    ]
+  },
+  "assetsVerified": true
+}
